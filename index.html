@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B2B Unique 대시보드 | 2026년 4월</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<style>
+  :root {
+    --primary: #08A794;
+    --primary-light: #0CEFD3;
+    --primary-soft: #87FFE5;
+    --primary-bg: #E6FFF8;
+    --accent: #FFC600;
+    --accent-orange: #FF8400;
+    --accent-pink: #F13FA1;
+    --accent-blue: #1A7CFF;
+    --accent-purple: #6580FF;
+    --success: #08A794;
+    --warning: #FFC600;
+    --danger: #FF403E;
+    --bg: #F7F8FA;
+    --card: #FFFFFF;
+    --text: #1F2937;
+    --text-light: #6B7280;
+    --border: #E5E7EB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px 16px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white;
+    padding: 40px 48px;
+    border-radius: 16px;
+    margin-bottom: 32px;
+    box-shadow: 0 6px 24px rgba(12,239,211,0.25);
+  }
+  .header .label { font-size: 14px; opacity: 0.85; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .header h1 { font-size: 32px; font-weight: 700; margin-bottom: 12px; }
+  .header .meta { display: flex; gap: 24px; font-size: 14px; opacity: 0.9; flex-wrap: wrap; }
+  .header .meta span::before { content: "•"; margin-right: 8px; opacity: 0.6; }
+  .header .meta span:first-child::before { content: ""; margin: 0; }
+
+  /* Section */
+  section {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  section h2 {
+    font-size: 20px; font-weight: 700; color: var(--primary);
+    margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+  }
+  section h2 .num {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white; width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; box-shadow: 0 2px 6px rgba(8,167,148,0.25);
+  }
+  section .subtitle { color: var(--text-light); font-size: 14px; margin-bottom: 24px; }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;
+  }
+  .summary-card {
+    background: var(--bg); border-left: 4px solid var(--primary);
+    padding: 16px 20px; border-radius: 8px;
+  }
+  .summary-card.good { border-left-color: var(--success); }
+  .summary-card.warn { border-left-color: var(--warning); }
+  .summary-card.bad  { border-left-color: var(--danger); }
+  .summary-card .k { font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+  .summary-card .v { font-size: 24px; font-weight: 700; color: var(--text); }
+  .summary-card .sub { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+  .summary-card .sub.up   { color: var(--success); font-weight: 600; }
+  .summary-card .sub.down { color: var(--danger);  font-weight: 600; }
+
+  /* KPI Grid */
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .kpi-card {
+    border: 1px solid var(--border); border-radius: 10px; padding: 20px;
+    transition: transform 0.15s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .kpi-card .kpi-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .kpi-card .kpi-name { font-size: 13px; color: var(--text-light); font-weight: 600; }
+  .kpi-card .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;
+  }
+  .badge.success { background: var(--primary-bg); color: var(--primary); }
+  .badge.warning { background: #FFF8DB; color: #8C6B00; }
+  .badge.danger  { background: #FFE5E4; color: #C73A38; }
+  .kpi-card .actual { font-size: 26px; font-weight: 700; margin: 4px 0 2px; }
+  .kpi-card .kpi-meta {
+    display: flex; justify-content: space-between; font-size: 12px; color: var(--text-light);
+    padding-bottom: 10px; border-bottom: 1px dashed var(--border); margin-bottom: 8px;
+  }
+  .kpi-card .mom { font-weight: 600; }
+  .kpi-card .mom.up   { color: var(--success); }
+  .kpi-card .mom.down { color: var(--danger); }
+  .kpi-card .gap-row { font-size: 12px; color: var(--text-light); }
+  .kpi-card .gap-row span { font-weight: 700; }
+  .kpi-card .gap-row span.good { color: var(--success); }
+  .kpi-card .gap-row span.bad  { color: var(--danger); }
+  .mini-chart { height: 90px; margin-top: 10px; position: relative; }
+
+  /* Chart wrap */
+  .chart-wrap { position: relative; height: 300px; margin-top: 16px; }
+  .chart-wrap.tall { height: 360px; }
+
+  /* OKR badge */
+  .okr-tag {
+    display: inline-block; background: var(--accent); color: #78350F;
+    font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;
+    letter-spacing: 0.5px; vertical-align: middle; margin-left: 8px;
+  }
+
+  /* Two-col layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .two-col-6535 { display: grid; grid-template-columns: 65fr 35fr; gap: 20px; }
+
+  /* Trend table */
+  .trend-table-wrap { overflow-x: auto; }
+  .trend-table {
+    width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px;
+  }
+  .trend-table th {
+    background: #F8FAFC; padding: 9px 8px; text-align: center; font-weight: 700;
+    color: var(--text-light); border-bottom: 2px solid var(--border);
+    white-space: nowrap; font-size: 11px;
+  }
+  .trend-table th.emph { background: var(--primary-bg); color: var(--primary); }
+  .trend-table td {
+    padding: 9px 8px; border-bottom: 1px solid #F1F3F6; text-align: center;
+    white-space: nowrap;
+  }
+  .trend-table td.label-col { text-align: left; font-weight: 600; padding-left: 12px; }
+  .trend-table tr.target-row td { color: var(--text-light); font-size: 11px; }
+  .trend-table tr.gap-row td { font-weight: 700; font-size: 11px; }
+  .trend-table tr.gap-row td.pos { color: var(--success); }
+  .trend-table tr.gap-row td.neg { color: var(--danger); }
+  .trend-table tr.section-row td {
+    background: var(--primary-bg); color: var(--primary); font-weight: 700;
+    font-size: 11px; border-top: 1px solid var(--primary-soft);
+  }
+  .trend-table td.emph { background: var(--primary-bg); font-weight: 700; color: var(--primary); }
+
+  /* Type breakdown */
+  .type-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+  .type-card {
+    background: var(--bg); border-radius: 10px; padding: 18px 20px;
+    border: 1px solid var(--border);
+  }
+  .type-card .type-name { font-size: 12px; color: var(--text-light); font-weight: 600; margin-bottom: 4px; }
+  .type-card .type-val  { font-size: 22px; font-weight: 700; }
+  .type-card .type-sub  { font-size: 12px; margin-top: 4px; font-weight: 600; }
+  .type-card .type-sub.up   { color: var(--success); }
+  .type-card .type-sub.down { color: var(--danger); }
+  .type-card .type-children { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+  .type-card .type-child {
+    display: flex; justify-content: space-between; font-size: 12px;
+    padding: 4px 0; border-bottom: 1px dashed #F1F3F6; color: var(--text);
+  }
+  .type-card .type-child:last-child { border-bottom: none; }
+  .type-card .type-child .c-val { font-weight: 700; }
+  .type-card .type-child .c-mom { color: var(--text-light); font-size: 11px; }
+  .type-card .type-child .c-mom.up   { color: var(--success); }
+  .type-card .type-child .c-mom.down { color: var(--danger); }
+
+  /* Tier table */
+  .tier-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px; }
+  .tier-table th {
+    background: #F8FAFC; padding: 10px 12px; text-align: center;
+    font-size: 12px; color: var(--text-light); font-weight: 600;
+    border-bottom: 2px solid var(--border);
+  }
+  .tier-table td { padding: 10px 12px; border-bottom: 1px solid #F1F3F6; text-align: center; }
+  .tier-table td:first-child { text-align: left; font-weight: 700; }
+  .tier-table .up   { color: var(--success); font-weight: 700; }
+  .tier-table .down { color: var(--danger);  font-weight: 700; }
+  .tier-table tr.total-row td { background: var(--primary-bg); font-weight: 700; color: var(--primary); border-top: 1px solid var(--primary-soft); }
+
+  /* Weekly bar */
+  .week-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: 16px; }
+  .week-col { text-align: center; }
+  .week-col .w-label { font-size: 10px; color: var(--text-light); margin-bottom: 6px; white-space: nowrap; }
+  .week-col .w-bar-wrap { height: 80px; display: flex; align-items: flex-end; justify-content: center; }
+  .week-col .w-bar { width: 28px; border-radius: 4px 4px 0 0; background: var(--primary); opacity: 0.5; }
+  .week-col.current .w-bar { opacity: 1; }
+  .week-col .w-val { font-size: 10px; font-weight: 700; margin-top: 4px; color: var(--text); }
+  .week-col .w-pct { font-size: 10px; color: var(--text-light); }
+  .week-col.current .w-val { color: var(--primary); }
+
+  /* HL box */
+  .hl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+  .hl-box { padding: 18px 20px; border-radius: 10px; }
+  .hl-box.high { background: var(--primary-bg); border: 1px solid var(--primary-soft); }
+  .hl-box.low  { background: #FFEEED; border: 1px solid #FFCDCB; }
+  .hl-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .hl-box.high h4 { color: var(--primary); }
+  .hl-box.low  h4 { color: #C73A38; }
+  .hl-box ul { list-style: none; }
+  .hl-box li {
+    font-size: 13px; padding: 6px 0; padding-left: 18px; position: relative;
+    color: var(--text); border-bottom: 1px dashed rgba(0,0,0,0.07); line-height: 1.6;
+  }
+  .hl-box li:last-child { border-bottom: none; }
+  .hl-box.high li::before { content: "▲"; position: absolute; left: 0; color: var(--success); font-size: 10px; top: 10px; }
+  .hl-box.low  li::before { content: "▼"; position: absolute; left: 0; color: var(--danger);  font-size: 10px; top: 10px; }
+
+  /* Summary text box */
+  .summary-text {
+    background: #FFF8E7; border: 1px solid #FCE7B6; border-radius: 8px;
+    padding: 16px 20px; font-size: 14px; color: #78350F; margin-top: 16px;
+  }
+  .summary-quote { padding: 8px 0 4px; }
+  .summary-quote p { font-size: 18px; font-weight: 500; line-height: 1.7; color: var(--text); }
+
+  /* Stat row */
+  .stat-row { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .stat-item { flex: 1; min-width: 140px; }
+  .stat-item .s-label { font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+  .stat-item .s-val   { font-size: 20px; font-weight: 700; }
+  .stat-item .s-sub   { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+  .stat-item .s-sub.up   { color: var(--success); font-weight: 600; }
+  .stat-item .s-sub.down { color: var(--danger);  font-weight: 600; }
+
+  /* Footer */
+  .footer {
+    text-align: center; color: var(--text-light); font-size: 12px;
+    padding: 24px; margin-top: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .summary-grid, .kpi-grid, .two-col, .two-col-6535,
+    .hl-grid, .type-grid { grid-template-columns: 1fr; }
+    .week-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media print {
+    body { background: white; padding: 0; }
+    section { box-shadow: none; border: 1px solid var(--border); page-break-inside: avoid; }
+    .header { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="label">Unique Dashboard</div>
+    <h1>Unique 실적 대시보드</h1>
+    <div class="meta">
+      <span>기준일: 2026.05.10</span>
+      <span>대상: 2025.01 ~ 2026.04</span>
+      <span>작성: 사업부문</span>
+    </div>
+  </div>
+
+  <!-- 0. Executive Summary -->
+  <section>
+    <h2><span class="num">0</span>Executive Summary</h2>
+    <div class="summary-quote">
+      <p>4월 Unique 주문수 <strong>10,165천건</strong>, 목표 대비 <strong style="color:var(--danger)">-146천건(-1.4%)</strong> 미달 — 전략 프로모션 급성장(+36.2%)이 경쟁우위 역성장(-14.2%)을 상쇄했으나 목표에는 소폭 미치지 못함. 주문침투율은 <strong style="color:var(--success)">13.3%</strong>로 목표(13.2%) 최초 초과 달성.</p>
+    </div>
+    <div class="summary-grid" style="margin-top:20px">
+      <div class="summary-card bad">
+        <div class="k">⭐ Unique 주문수</div>
+        <div class="v">10,165천건</div>
+        <div class="sub down">목표 대비 -146천건 · MoM +2.5%</div>
+      </div>
+      <div class="summary-card good">
+        <div class="k">⭐ Unique 주문침투율</div>
+        <div class="v">13.3%</div>
+        <div class="sub up">목표 초과 +0.1%p ✅ · MoM +0.8%p</div>
+      </div>
+      <div class="summary-card warn">
+        <div class="k">⭐ Unique Inventory (Top200)</div>
+        <div class="v">1건</div>
+        <div class="sub down">목표 대비 -1건 · 전월 동일</div>
+      </div>
+    </div>
+    <div class="summary-text">
+      💡 <strong>핵심 시사점:</strong> GFV -5.8% MoM 역성장은 주문 단가 하락 신호. 전략 프로모션 +36% 성장이 구조적 전환 중임을 시사. Top200 브랜드수 +40% 급증으로 Longtail → 주류 확장 국면.
+    </div>
+  </section>
+
+  <!-- 1. OKR KPI 카드 -->
+  <section>
+    <h2><span class="num">1</span>OKR 지표 현황 <span class="okr-tag">⭐ OKR</span></h2>
+    <p class="subtitle">2026년 4월 기준 · 목표/실적/Gap · 월별 추이</p>
+    <div class="kpi-grid">
+
+      <!-- 주문수 -->
+      <div class="kpi-card">
+        <div class="kpi-head">
+          <span class="kpi-name">Unique 주문수</span>
+          <span class="badge danger">목표 미달</span>
+        </div>
+        <div class="actual">10,165<small style="font-size:14px;font-weight:400;color:var(--text-light)"> 천건</small></div>
+        <div class="kpi-meta">
+          <span>목표 10,311천건</span>
+          <span class="mom up">MoM +2.5% ▲</span>
+        </div>
+        <div class="gap-row">Gap <span class="bad">-146천건</span> &nbsp;|&nbsp; WoW <span class="good">+6.7%</span></div>
+        <div class="mini-chart"><canvas id="miniOrdCnt"></canvas></div>
+      </div>
+
+      <!-- 침투율 -->
+      <div class="kpi-card">
+        <div class="kpi-head">
+          <span class="kpi-name">Unique 주문침투율</span>
+          <span class="badge success">목표 초과 ✅</span>
+        </div>
+        <div class="actual">13.3<small style="font-size:14px;font-weight:400;color:var(--text-light)">%</small></div>
+        <div class="kpi-meta">
+          <span>목표 13.2%</span>
+          <span class="mom up">MoM +0.8%p ▲</span>
+        </div>
+        <div class="gap-row">Gap <span class="good">+0.1%p</span> &nbsp;|&nbsp; WoW <span class="good">+0.5%p</span></div>
+        <div class="mini-chart"><canvas id="miniPenetr"></canvas></div>
+      </div>
+
+      <!-- Inventory -->
+      <div class="kpi-card">
+        <div class="kpi-head">
+          <span class="kpi-name">Unique Inventory (Top200)</span>
+          <span class="badge warning">목표 미달</span>
+        </div>
+        <div class="actual">1<small style="font-size:14px;font-weight:400;color:var(--text-light)"> 건</small></div>
+        <div class="kpi-meta">
+          <span>목표 2건</span>
+          <span class="mom" style="color:var(--text-light)">MoM ±0</span>
+        </div>
+        <div class="gap-row">Gap <span class="bad">-1건</span></div>
+        <div class="mini-chart"><canvas id="miniInven"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 월별 트렌드 -->
+  <section>
+    <h2><span class="num">2</span>월별 실적 트렌드</h2>
+    <p class="subtitle">'25년 1월 ~ '26년 4월 · 실적 vs 목표</p>
+
+    <div class="two-col-6535">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Unique 주문수 (천건)</div>
+        <div class="chart-wrap"><canvas id="chartOrdCnt"></canvas></div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Unique 주문침투율 (%)</div>
+        <div class="chart-wrap"><canvas id="chartPenetr"></canvas></div>
+      </div>
+    </div>
+
+    <div style="margin-top:28px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">브랜드수 (건) · 파트너수 (명)</div>
+      <div class="two-col">
+        <div class="chart-wrap" style="height:240px"><canvas id="chartBrand"></canvas></div>
+        <div class="chart-wrap" style="height:240px"><canvas id="chartPartner"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 목표 대비 요약 테이블 -->
+    <div class="trend-table-wrap" style="margin-top:28px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">OKR 지표 목표 대비 이력</div>
+      <table class="trend-table">
+        <thead>
+          <tr>
+            <th>지표</th>
+            <th>'26년 1월</th><th>2월</th><th>3월</th><th class="emph">4월</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="label-col">Unique 주문수 (천건)</td>
+            <td>7,457</td><td>7,853</td><td>9,922</td><td class="emph">10,165</td>
+          </tr>
+          <tr class="target-row">
+            <td class="label-col" style="color:var(--text-light);font-weight:400">└ 목표</td>
+            <td>9,417</td><td>9,491</td><td>10,237</td><td class="emph">10,311</td>
+          </tr>
+          <tr class="gap-row">
+            <td class="label-col" style="font-weight:400">└ Gap</td>
+            <td class="neg">-1,960</td><td class="neg">-1,637</td><td class="neg">-315</td><td class="emph neg">-146</td>
+          </tr>
+          <tr>
+            <td class="label-col">주문침투율 (%)</td>
+            <td>9.1%</td><td>10.8%</td><td>12.5%</td><td class="emph">13.3%</td>
+          </tr>
+          <tr class="target-row">
+            <td class="label-col" style="color:var(--text-light);font-weight:400">└ 목표</td>
+            <td>11.6%</td><td>12.7%</td><td>13.0%</td><td class="emph">13.2%</td>
+          </tr>
+          <tr class="gap-row">
+            <td class="label-col" style="font-weight:400">└ Gap</td>
+            <td class="neg">-2.5%p</td><td class="neg">-1.9%p</td><td class="neg">-0.5%p</td><td class="emph pos">+0.1%p</td>
+          </tr>
+          <tr>
+            <td class="label-col">Inventory Top200 (건)</td>
+            <td>0</td><td>1</td><td>1</td><td class="emph">1</td>
+          </tr>
+          <tr class="target-row">
+            <td class="label-col" style="color:var(--text-light);font-weight:400">└ 목표</td>
+            <td>1</td><td>1</td><td>2</td><td class="emph">2</td>
+          </tr>
+          <tr class="gap-row">
+            <td class="label-col" style="font-weight:400">└ Gap</td>
+            <td class="neg">-1</td><td class="pos">0</td><td class="neg">-1</td><td class="emph neg">-1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3. 주간 트렌드 -->
+  <section>
+    <h2><span class="num">3</span>주간 트렌드</h2>
+    <p class="subtitle">'26년 3월 3주 ~ 5월 1주 · WoW 기준 · <strong style="color:var(--success)">기준일 2026.05.10 업데이트</strong></p>
+
+    <div class="summary-grid">
+      <div class="summary-card good">
+        <div class="k">5월 1주 Unique 주문수</div>
+        <div class="v">2,769,619<small style="font-size:13px;font-weight:400"> 건</small></div>
+        <div class="sub up">WoW +175,080건 (+6.7%) vs 4월 5주</div>
+      </div>
+      <div class="summary-card good">
+        <div class="k">5월 1주 Unique 침투율</div>
+        <div class="v">14.4%</div>
+        <div class="sub up">WoW +0.5%p (+3.5%) vs 4월 5주</div>
+      </div>
+      <div class="summary-card good">
+        <div class="k">브랜드수 5월 확정</div>
+        <div class="v">55<small style="font-size:13px;font-weight:400"> 개</small></div>
+        <div class="sub up">4월(53개) 대비 +2개 (+3.8%)</div>
+      </div>
+    </div>
+
+    <!-- 주간 Bar 시각화 -->
+    <div class="week-grid">
+      <div class="week-col">
+        <div class="w-label">3월 3주</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:55%"></div></div>
+        <div class="w-val">211만</div>
+        <div class="w-pct">12.0%</div>
+      </div>
+      <div class="week-col">
+        <div class="w-label">3월 4주</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:55%"></div></div>
+        <div class="w-val">213만</div>
+        <div class="w-pct">12.3%</div>
+      </div>
+      <div class="week-col">
+        <div class="w-label">4월 1주</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:65%"></div></div>
+        <div class="w-val">249만</div>
+        <div class="w-pct">14.1%</div>
+      </div>
+      <div class="week-col">
+        <div class="w-label">4월 2주</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:56%"></div></div>
+        <div class="w-val">215만</div>
+        <div class="w-pct">12.1%</div>
+      </div>
+      <div class="week-col">
+        <div class="w-label">4월 3주</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:60%"></div></div>
+        <div class="w-val">232만</div>
+        <div class="w-pct">13.1%</div>
+      </div>
+      <div class="week-col">
+        <div class="w-label">4월 4주</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:65%"></div></div>
+        <div class="w-val">251만</div>
+        <div class="w-pct">14.0%</div>
+      </div>
+      <div class="week-col">
+        <div class="w-label">4월 5주</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:68%"></div></div>
+        <div class="w-val">259만</div>
+        <div class="w-pct">14.0%</div>
+      </div>
+      <div class="week-col current">
+        <div class="w-label" style="font-weight:700;color:var(--primary)">5월 1주 ★</div>
+        <div class="w-bar-wrap"><div class="w-bar" style="height:72%"></div></div>
+        <div class="w-val">277만</div>
+        <div class="w-pct" style="color:var(--success);font-weight:700">14.4%</div>
+      </div>
+    </div>
+
+    <div class="chart-wrap" style="height:220px;margin-top:20px"><canvas id="chartWeekly"></canvas></div>
+  </section>
+
+  <!-- 4. 유형별 분석 -->
+  <section>
+    <h2><span class="num">4</span>유형별 분석</h2>
+    <p class="subtitle">Unique 주문수 기준 · '26년 4월 실적</p>
+
+    <div class="two-col">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">주문수 유형별 구성 (천건)</div>
+        <div class="type-grid">
+          <div class="type-card" style="border-left:4px solid var(--accent-orange)">
+            <div class="type-name">Promotion</div>
+            <div class="type-val">9,101<small style="font-size:12px;font-weight:400"> 천건</small></div>
+            <div class="type-sub up">MoM +3.3% · 비중 89.5%</div>
+            <div class="type-children">
+              <div class="type-child">
+                <span>전략 프로모션</span>
+                <span><span class="c-val">4,165천</span> <span class="c-mom up">+36.2%</span></span>
+              </div>
+              <div class="type-child">
+                <span>경쟁우위 프로모션</span>
+                <span><span class="c-val">4,936천</span> <span class="c-mom down">-14.2%</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="type-card" style="border-left:4px solid var(--accent-blue)">
+            <div class="type-name">Selection (Inventory)</div>
+            <div class="type-val">952<small style="font-size:12px;font-weight:400"> 천건</small></div>
+            <div class="type-sub down">MoM -14.1% · 비중 9.4%</div>
+            <div class="type-children">
+              <div class="type-child">
+                <span>Inventory</span>
+                <span><span class="c-val">952천</span> <span class="c-mom down">-14.1%</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="type-card" style="border-left:4px solid var(--accent-purple);grid-column:span 2">
+            <div class="type-name">Benefits (배민클럽)</div>
+            <div class="type-val">112<small style="font-size:12px;font-weight:400"> 천건</small></div>
+            <div class="type-sub down">전월 대비 신규 등장 · 비중 1.1%</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">유형별 구성 비율 (4월)</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="chartType"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 브랜드 등급별 -->
+  <section>
+    <h2><span class="num">5</span>브랜드 등급별 분석</h2>
+    <p class="subtitle">주문수 · 브랜드수 · 파트너수 · GFV 기준 · '26년 4월</p>
+
+    <div class="two-col">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">주문수 브랜드 등급별 (천건)</div>
+        <table class="tier-table">
+          <thead>
+            <tr><th>등급</th><th>'26년 3월</th><th>'26년 4월</th><th>MoM</th><th>비중</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>🥇 Top60</td>
+              <td>9,178</td><td>9,061</td>
+              <td class="down">-1.3%</td>
+              <td>89.1%</td>
+            </tr>
+            <tr>
+              <td>🥈 Top200</td>
+              <td>702</td><td>985</td>
+              <td class="up">+40.2%</td>
+              <td>9.7%</td>
+            </tr>
+            <tr>
+              <td>Top400</td>
+              <td>24</td><td>26</td>
+              <td class="up">+5.0%</td>
+              <td>0.3%</td>
+            </tr>
+            <tr>
+              <td>Longtail</td>
+              <td>17</td><td>94</td>
+              <td class="up">+460.2%</td>
+              <td>0.9%</td>
+            </tr>
+            <tr class="total-row">
+              <td>합계</td>
+              <td>9,921</td><td>10,165</td>
+              <td>+2.5%</td>
+              <td>100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">브랜드수 등급별 (건)</div>
+        <table class="tier-table">
+          <thead>
+            <tr><th>등급</th><th>'26년 3월</th><th>'26년 4월</th><th>MoM</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Top60</td><td>20</td><td>24</td><td class="up">+4</td></tr>
+            <tr><td>Top200</td><td>15</td><td>18</td><td class="up">+3</td></tr>
+            <tr><td>Top400</td><td>1</td><td>3</td><td class="up">+2</td></tr>
+            <tr><td>Longtail</td><td>8</td><td>8</td><td>-</td></tr>
+            <tr class="total-row"><td>합계</td><td>44</td><td>53</td><td class="up">+9 (+20.5%)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top:24px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">GFV 브랜드 등급별 추이 (백만원)</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartGfvTier"></canvas></div>
+    </div>
+  </section>
+
+  <!-- 6. GFV / FLGP -->
+  <section>
+    <h2><span class="num">6</span>GFV · FLGP</h2>
+    <p class="subtitle">GFV 및 FLGP(Top200 한정) 월별 추이</p>
+
+    <div class="summary-grid">
+      <div class="summary-card bad">
+        <div class="k">GFV (4월)</div>
+        <div class="v">258,767<small style="font-size:13px;font-weight:400"> 백만원</small></div>
+        <div class="sub down">MoM -16,047백만 (-5.8%) ⚠️</div>
+      </div>
+      <div class="summary-card">
+        <div class="k">Unique GFV 침투율 (4월)</div>
+        <div class="v">14.2%</div>
+        <div class="sub down">MoM -0.2%p</div>
+      </div>
+      <div class="summary-card warn">
+        <div class="k">FLGP Top200 (3월)</div>
+        <div class="v">305<small style="font-size:13px;font-weight:400"> 백만원</small></div>
+        <div class="sub" style="color:var(--text-light)">4월 데이터 미확정(TBU)</div>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:20px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">GFV 월별 추이 (백만원)</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="chartGfv"></canvas></div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">FLGP Top200 월별 추이 (백만원)</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="chartFlgp"></canvas></div>
+      </div>
+    </div>
+
+    <div class="summary-text" style="margin-top:16px">
+      ⚠️ <strong>GFV 역성장 주의:</strong> 주문수는 MoM +2.5% 성장했으나 GFV는 -5.8% 감소. 건당 평균 주문 금액 하락 또는 저단가 Longtail 확장 영향으로 추정. 단가 트렌드 모니터링 필요.
+    </div>
+  </section>
+
+  <!-- 7. M/S -->
+  <section>
+    <h2><span class="num">7</span>M/S 분석</h2>
+    <p class="subtitle">Unique vs Non-Unique 가맹점 M/S 비교 · 단순 평균 기준 · <strong style="color:var(--success)">'26년 4월 데이터 업데이트</strong></p>
+
+    <div class="stat-row">
+      <div class="stat-item">
+        <div class="s-label">Unique 가맹점 M/S ('26년 4월)</div>
+        <div class="s-val">62.9%</div>
+        <div class="s-sub up">전월(62.6%) 대비 +0.3%p ▲</div>
+      </div>
+      <div class="stat-item">
+        <div class="s-label">Non-Unique 가맹점 M/S</div>
+        <div class="s-val">56.9%</div>
+        <div class="s-sub down">전월(57.0%) 대비 -0.1%p ▼</div>
+      </div>
+      <div class="stat-item">
+        <div class="s-label">Unique Uplift</div>
+        <div class="s-val" style="color:var(--success)">+6.0%p</div>
+        <div class="s-sub up">전월(+5.6%p) 대비 +0.4%p 개선 ✅</div>
+      </div>
+    </div>
+
+    <div class="chart-wrap" style="height:260px;margin-top:16px"><canvas id="chartMs"></canvas></div>
+
+    <div class="hl-grid" style="margin-top:16px">
+      <div class="hl-box high">
+        <h4>💚 Uplift 반등 — 4월 +6.0%p</h4>
+        <ul>
+          <li>3월 5.6%p → 4월 6.0%p, 3개월 만에 uplift 재반등</li>
+          <li>Non-Unique M/S 56.9%로 하락하며 격차 확대에 기여</li>
+          <li>전략 프로모션 확대(+36.2%)가 Unique M/S 상승 견인</li>
+        </ul>
+      </div>
+      <div class="hl-box low">
+        <h4>🔴 유형별 M/S 구조 약화</h4>
+        <ul>
+          <li>Inventory M/S 60% → 47%로 급락 (-21.4%)</li>
+          <li>경쟁우위 M/S 53% → 46%로 하락 (-14.5%)</li>
+          <li>'25년 1월 34.8%p → '26년 4월 6.0%p, 장기 축소 추세 지속</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <div class="footer">
+    B2B영업실 · 파트너사업개발 데이터분석팀 &nbsp;|&nbsp; 기준일 2026.05.10 &nbsp;|&nbsp; WIP — 수시 업데이트
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ────────────────────────────────────────────────────────────
+// 공통 설정
+// ────────────────────────────────────────────────────────────
+Chart.register(ChartDataLabels);
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif';
+Chart.defaults.plugins.datalabels.display = false;
+
+const mint    = '#08A794';
+const mintLt  = '#0CEFD3';
+const mintBg  = 'rgba(8,167,148,0.12)';
+const mintBg2 = 'rgba(12,239,211,0.08)';
+const danger  = '#FF403E';
+const warn    = '#FFC600';
+const blue    = '#1A7CFF';
+const purple  = '#6580FF';
+const orange  = '#FF8400';
+const gray    = '#E5E7EB';
+
+const monthLabels = [
+  "'25.1","'25.2","'25.3","'25.4","'25.5","'25.6",
+  "'25.7","'25.8","'25.9","'25.10","'25.11","'25.12",
+  "'26.1","'26.2","'26.3","'26.4"
+];
+
+// ────────────────────────────────────────────────────────────
+// Mini 차트 공통 옵션
+// ────────────────────────────────────────────────────────────
+function miniOpts(color) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false } },
+    scales: { x: { display: false }, y: { display: false } },
+    elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } },
+    animation: { duration: 600 }
+  };
+}
+
+// Mini: 주문수
+new Chart(document.getElementById('miniOrdCnt'), {
+  type: 'line',
+  data: {
+    labels: monthLabels,
+    datasets: [{
+      data: [980,1965,4101,4700,5849,5920,6849,7223,6946,8213,9446,10198,7457,7853,9922,10165],
+      borderColor: mint, backgroundColor: mintBg, fill: true
+    }]
+  },
+  options: miniOpts(mint)
+});
+
+// Mini: 침투율
+new Chart(document.getElementById('miniPenetr'), {
+  type: 'line',
+  data: {
+    labels: monthLabels,
+    datasets: [{
+      data: [1.2,2.7,5.4,6.5,7.7,7.8,8.5,8.7,9.4,10.8,12.6,12.5,9.1,10.8,12.5,13.3],
+      borderColor: mint, backgroundColor: mintBg, fill: true
+    }]
+  },
+  options: miniOpts(mint)
+});
+
+// Mini: Inventory
+new Chart(document.getElementById('miniInven'), {
+  type: 'line',
+  data: {
+    labels: ["'26.1","'26.2","'26.3","'26.4"],
+    datasets: [{
+      data: [0,1,1,1],
+      borderColor: warn, backgroundColor: 'rgba(255,198,0,0.1)', fill: true
+    }]
+  },
+  options: miniOpts(warn)
+});
+
+// ────────────────────────────────────────────────────────────
+// 주문수 vs 목표 차트
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartOrdCnt'), {
+  type: 'line',
+  data: {
+    labels: monthLabels,
+    datasets: [
+      {
+        label: '실적',
+        data: [980,1965,4101,4700,5849,5920,6849,7223,6946,8213,9446,10198,7457,7853,9922,10165],
+        borderColor: mint, backgroundColor: mintBg, fill: true,
+        tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint
+      },
+      {
+        label: '목표',
+        data: [null,null,null,null,null,null,null,null,null,null,null,null,9417,9491,10237,10311],
+        borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent',
+        tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+      tooltip: { mode: 'index', intersect: false },
+      datalabels: { display: false }
+    },
+    scales: {
+      x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+      y: { ticks: { font: { size: 10 }, callback: v => v.toLocaleString() }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// 침투율 vs 목표
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartPenetr'), {
+  type: 'line',
+  data: {
+    labels: monthLabels,
+    datasets: [
+      {
+        label: '실적',
+        data: [1.2,2.7,5.4,6.5,7.7,7.8,8.5,8.7,9.4,10.8,12.6,12.5,9.1,10.8,12.5,13.3],
+        borderColor: mint, backgroundColor: mintBg, fill: true,
+        tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint
+      },
+      {
+        label: '목표',
+        data: [null,null,null,null,null,null,null,null,null,null,null,null,11.6,12.7,13.0,13.2],
+        borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent',
+        tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+      tooltip: { mode: 'index', intersect: false },
+      datalabels: { display: false }
+    },
+    scales: {
+      x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+      y: { min: 0, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// 브랜드수
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartBrand'), {
+  type: 'bar',
+  data: {
+    labels: monthLabels,
+    datasets: [{
+      label: '브랜드수 (건)',
+      data: [7,11,14,15,20,19,23,24,25,29,25,25,24,31,44,53],
+      backgroundColor: monthLabels.map((_, i) => i >= 12 ? mint : mintBg.replace('0.12','0.45')),
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      datalabels: {
+        display: true, anchor: 'end', align: 'top',
+        font: { size: 9, weight: '700' },
+        color: ctx => ctx.dataIndex >= 12 ? mint : '#9CA3AF',
+        formatter: v => v
+      }
+    },
+    scales: {
+      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+      y: { ticks: { font: { size: 10 } }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// 파트너수
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartPartner'), {
+  type: 'line',
+  data: {
+    labels: monthLabels,
+    datasets: [{
+      label: '파트너수 (명)',
+      data: [1464,3310,4897,6263,6617,7028,7998,8041,9710,12186,12220,12515,11060,12811,17799,22539],
+      borderColor: orange, backgroundColor: 'rgba(255,132,0,0.1)', fill: true,
+      tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      datalabels: { display: false }
+    },
+    scales: {
+      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+      y: { ticks: { font: { size: 10 }, callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// 주간 차트
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartWeekly'), {
+  type: 'bar',
+  data: {
+    labels: ['3월 3주','3월 4주','4월 1주','4월 2주','4월 3주','4월 4주','4월 5주','5월 1주'],
+    datasets: [
+      {
+        type: 'bar', label: '주문수',
+        data: [2111586,2125209,2488586,2151609,2316679,2512481,2594539,2769619],
+        backgroundColor: (ctx) => ctx.dataIndex === 7 ? mint : mintBg.replace('0.12','0.45'),
+        borderRadius: 4, yAxisID: 'y'
+      },
+      {
+        type: 'line', label: '침투율',
+        data: [12.0,12.3,14.1,12.1,13.1,14.0,14.0,14.4],
+        borderColor: orange, backgroundColor: 'transparent',
+        tension: 0.4, borderWidth: 2, pointRadius: 4, pointBackgroundColor: orange, yAxisID: 'y2'
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+      datalabels: { display: false }
+    },
+    scales: {
+      x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+      y: {
+        position: 'left', ticks: { font: { size: 10 }, callback: v => (v/10000).toFixed(0)+'만' },
+        grid: { color: '#F1F3F6' }
+      },
+      y2: {
+        position: 'right', grid: { display: false },
+        ticks: { font: { size: 10 }, callback: v => v + '%' }, min: 10, max: 16
+      }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// 유형별 도넛
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartType'), {
+  type: 'doughnut',
+  data: {
+    labels: ['전략 프로모션','경쟁우위 프로모션','Selection','Benefits'],
+    datasets: [{
+      data: [4165, 4936, 952, 112],
+      backgroundColor: [mint, mintLt, blue, purple],
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
+      datalabels: {
+        display: true,
+        formatter: (v, ctx) => {
+          const total = ctx.chart.data.datasets[0].data.reduce((a,b) => a+b, 0);
+          return ((v/total)*100).toFixed(1) + '%';
+        },
+        color: '#fff', font: { size: 11, weight: '700' }
+      }
+    },
+    cutout: '55%'
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// GFV 등급별 (Stacked Bar)
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartGfvTier'), {
+  type: 'bar',
+  data: {
+    labels: ["'26.1","'26.2","'26.3","'26.4"],
+    datasets: [
+      { label: 'Top60',   data: [176133,203645,252765,227621], backgroundColor: mint, borderRadius: 2 },
+      { label: 'Top200',  data: [20546,19617,20967,27897], backgroundColor: mintLt, borderRadius: 2 },
+      { label: 'Top400',  data: [0,0,445,791], backgroundColor: orange, borderRadius: 2 },
+      { label: 'Longtail',data: [119,298,638,2458], backgroundColor: purple, borderRadius: 2 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } }, datalabels: { display: false } },
+    scales: {
+      x: { stacked: true, ticks: { font: { size: 11 } }, grid: { display: false } },
+      y: { stacked: true, ticks: { font: { size: 10 }, callback: v => (v/1000).toFixed(0) + 'B' }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// GFV 전체 추이
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartGfv'), {
+  type: 'bar',
+  data: {
+    labels: monthLabels,
+    datasets: [{
+      label: 'GFV (백만원)',
+      data: [28024,53701,109526,125379,145374,147847,171623,181425,170311,201221,229548,250389,183724,201881,274815,258767],
+      backgroundColor: (ctx) => {
+        const v = ctx.raw;
+        const prev = ctx.dataIndex > 0 ? ctx.chart.data.datasets[0].data[ctx.dataIndex-1] : v;
+        return (ctx.dataIndex === 15 && v < prev) ? 'rgba(255,64,62,0.6)' : (ctx.dataIndex >= 12 ? mint : mintBg.replace('0.12','0.4'));
+      },
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, datalabels: { display: false } },
+    scales: {
+      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+      y: { ticks: { font: { size: 10 }, callback: v => (v/1000).toFixed(0)+'B' }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// FLGP
+// ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('chartFlgp'), {
+  type: 'bar',
+  data: {
+    labels: monthLabels,
+    datasets: [{
+      label: 'FLGP Top200 (백만원)',
+      data: [1437,1200,-442,-1150,1027,2767,3890,3244,3492,5523,3732,3317,3811,3947,305,0],
+      backgroundColor: ctx => ctx.raw >= 0
+        ? (ctx.dataIndex >= 12 ? mint : mintBg.replace('0.12','0.4'))
+        : 'rgba(255,64,62,0.55)',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, datalabels: { display: false } },
+    scales: {
+      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+      y: { ticks: { font: { size: 10 }, callback: v => v.toLocaleString() }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// M/S 차트
+// ────────────────────────────────────────────────────────────
+const msLabels = ["'25.1","'25.2","'25.3","'25.4","'25.5","'25.6","'25.7","'25.8","'25.9","'25.10","'25.11","'26.1","'26.2","'26.3","'26.4"];
+new Chart(document.getElementById('chartMs'), {
+  type: 'line',
+  data: {
+    labels: msLabels,
+    datasets: [
+      {
+        label: 'Unique M/S',
+        data: [94.3,88.1,81.4,77.6,72.8,75.7,74.6,75.8,76.7,68.9,67.5,66.1,63.4,62.6,62.9],
+        borderColor: mint, backgroundColor: mintBg, fill: true,
+        tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint
+      },
+      {
+        label: 'Non-Unique M/S',
+        data: [59.5,58.9,57.8,56.7,55.9,56.1,56.2,56.4,56.9,55.0,55.7,57.8,57.5,57.0,56.9],
+        borderColor: orange, backgroundColor: 'rgba(255,132,0,0.07)', fill: true,
+        tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+      tooltip: { mode: 'index', intersect: false },
+      datalabels: { display: false }
+    },
+    scales: {
+      x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+      y: { min: 40, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: '#F1F3F6' } }
+    }
+  }
+});
+</script>
+</body>
+</html>
