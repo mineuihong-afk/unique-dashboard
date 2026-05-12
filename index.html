@@ -249,6 +249,21 @@
     .hl-grid, .type-grid { grid-template-columns: 1fr; }
     .week-grid { grid-template-columns: repeat(4, 1fr); }
   }
+  /* Loading / Error banner */
+  .fetch-banner {
+    display: none; align-items: center; gap: 12px;
+    padding: 14px 24px; border-radius: 10px; margin-bottom: 20px;
+    font-size: 14px; font-weight: 600;
+  }
+  .fetch-banner.loading { background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary-soft); }
+  .fetch-banner.error   { background: #FFEEED; color: #C73A38; border: 1px solid #FFCDCB; }
+  .fetch-banner .spin {
+    width: 18px; height: 18px; border: 3px solid var(--primary-soft);
+    border-top-color: var(--primary); border-radius: 50%;
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   @media print {
     body { background: white; padding: 0; }
     section { box-shadow: none; border: 1px solid var(--border); page-break-inside: avoid; }
@@ -264,10 +279,19 @@
     <div class="label">Unique Dashboard</div>
     <h1>Unique 실적 대시보드</h1>
     <div class="meta">
-      <span>기준일: 2026.05.10</span>
+      <span id="baseDateDisplay">기준일: 2026.05.10</span>
       <span>대상: 2025.01 ~ 2026.04</span>
       <span>작성: 사업부문</span>
     </div>
+  </div>
+
+  <!-- Loading / Error banners -->
+  <div id="loadingBanner" class="fetch-banner loading">
+    <div class="spin"></div>
+    <span>구글 시트에서 최신 데이터를 불러오는 중입니다…</span>
+  </div>
+  <div id="errorBanner" class="fetch-banner error" style="display:none">
+    ⚠️ <span id="errorMsg">데이터 로드 실패</span>
   </div>
 
   <!-- 0. Executive Summary -->
@@ -310,12 +334,12 @@
           <span class="kpi-name">Unique 주문수</span>
           <span class="badge danger">목표 미달</span>
         </div>
-        <div class="actual">10,165<small style="font-size:14px;font-weight:400;color:var(--text-light)"> 천건</small></div>
+        <div class="actual"><span id="kpiOrdActual">10,165</span><small style="font-size:14px;font-weight:400;color:var(--text-light)"> 천건</small></div>
         <div class="kpi-meta">
-          <span>목표 10,311천건</span>
-          <span class="mom up">MoM +2.5% ▲</span>
+          <span id="kpiOrdTarget">목표 10,311천건</span>
+          <span class="mom up" id="kpiOrdMoM">MoM +2.5% ▲</span>
         </div>
-        <div class="gap-row">Gap <span class="bad">-146천건</span> &nbsp;|&nbsp; WoW <span class="good">+6.7%</span></div>
+        <div class="gap-row">Gap <span class="bad" id="kpiOrdGap">-146천건</span> &nbsp;|&nbsp; WoW <span class="good" id="kpiOrdWoW">+6.7%</span></div>
         <div class="mini-chart"><canvas id="miniOrdCnt"></canvas></div>
       </div>
 
@@ -325,12 +349,12 @@
           <span class="kpi-name">Unique 주문침투율</span>
           <span class="badge success">목표 초과 ✅</span>
         </div>
-        <div class="actual">13.3<small style="font-size:14px;font-weight:400;color:var(--text-light)">%</small></div>
+        <div class="actual"><span id="kpiPenActual">13.3</span><small style="font-size:14px;font-weight:400;color:var(--text-light)">%</small></div>
         <div class="kpi-meta">
-          <span>목표 13.2%</span>
-          <span class="mom up">MoM +0.8%p ▲</span>
+          <span id="kpiPenTarget">목표 13.2%</span>
+          <span class="mom up" id="kpiPenMoM">MoM +0.8%p ▲</span>
         </div>
-        <div class="gap-row">Gap <span class="good">+0.1%p</span> &nbsp;|&nbsp; WoW <span class="good">+0.5%p</span></div>
+        <div class="gap-row">Gap <span class="good" id="kpiPenGap">+0.1%p</span> &nbsp;|&nbsp; WoW <span class="good" id="kpiPenWoW">+0.5%p</span></div>
         <div class="mini-chart"><canvas id="miniPenetr"></canvas></div>
       </div>
 
@@ -340,12 +364,12 @@
           <span class="kpi-name">Unique Inventory (Top200)</span>
           <span class="badge warning">목표 미달</span>
         </div>
-        <div class="actual">1<small style="font-size:14px;font-weight:400;color:var(--text-light)"> 건</small></div>
+        <div class="actual"><span id="kpiInvActual">1</span><small style="font-size:14px;font-weight:400;color:var(--text-light)"> 건</small></div>
         <div class="kpi-meta">
-          <span>목표 2건</span>
+          <span id="kpiInvTarget">목표 2건</span>
           <span class="mom" style="color:var(--text-light)">MoM ±0</span>
         </div>
-        <div class="gap-row">Gap <span class="bad">-1건</span></div>
+        <div class="gap-row">Gap <span class="bad" id="kpiInvGap">-1건</span></div>
         <div class="mini-chart"><canvas id="miniInven"></canvas></div>
       </div>
     </div>
@@ -451,7 +475,7 @@
     </div>
 
     <!-- 주간 Bar 시각화 -->
-    <div class="week-grid">
+    <div class="week-grid" id="weekGrid">
       <div class="week-col">
         <div class="w-label">3월 3주</div>
         <div class="w-bar-wrap"><div class="w-bar" style="height:55%"></div></div>
@@ -631,12 +655,12 @@
     <div class="summary-grid">
       <div class="summary-card bad">
         <div class="k">GFV (4월)</div>
-        <div class="v">258,767<small style="font-size:13px;font-weight:400"> 백만원</small></div>
-        <div class="sub down">MoM -16,047백만 (-5.8%) ⚠️</div>
+        <div class="v"><span id="gfvSumActual">258,767</span><small style="font-size:13px;font-weight:400"> 백만원</small></div>
+        <div class="sub down" id="gfvSumMoM">MoM -16,047백만 (-5.8%) ⚠️</div>
       </div>
       <div class="summary-card">
         <div class="k">Unique GFV 침투율 (4월)</div>
-        <div class="v">14.2%</div>
+        <div class="v" id="gfvSumPct">14.2%</div>
         <div class="sub down">MoM -0.2%p</div>
       </div>
       <div class="summary-card warn">
@@ -670,17 +694,17 @@
     <div class="stat-row">
       <div class="stat-item">
         <div class="s-label">Unique 가맹점 M/S ('26년 4월)</div>
-        <div class="s-val">62.9%</div>
+        <div class="s-val" id="msMsUniqueVal">62.9%</div>
         <div class="s-sub up">전월(62.6%) 대비 +0.3%p ▲</div>
       </div>
       <div class="stat-item">
         <div class="s-label">Non-Unique 가맹점 M/S</div>
-        <div class="s-val">56.9%</div>
+        <div class="s-val" id="msMsNonUniqueVal">56.9%</div>
         <div class="s-sub down">전월(57.0%) 대비 -0.1%p ▼</div>
       </div>
       <div class="stat-item">
         <div class="s-label">Unique Uplift</div>
-        <div class="s-val" style="color:var(--success)">+6.0%p</div>
+        <div class="s-val" id="msMsUpliftVal" style="color:var(--success)">+6.0%p</div>
         <div class="s-sub up">전월(+5.6%p) 대비 +0.4%p 개선 ✅</div>
       </div>
     </div>
@@ -709,12 +733,17 @@
 
   <!-- Footer -->
   <div class="footer">
-    B2B영업실 · 파트너사업개발 데이터분석팀 &nbsp;|&nbsp; 기준일 2026.05.10 &nbsp;|&nbsp; WIP — 수시 업데이트
+    B2B영업실 · 파트너사업개발 데이터분석팀 &nbsp;|&nbsp; 기준일 <span id="footerDate">2026.05.10</span> &nbsp;|&nbsp; WIP — 수시 업데이트
   </div>
 
 </div><!-- /container -->
 
 <script>
+// ────────────────────────────────────────────────────────────
+// GAS Web App URL — 배포 후 받은 URL로 교체하세요
+// ────────────────────────────────────────────────────────────
+var GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+
 // ────────────────────────────────────────────────────────────
 // 공통 설정
 // ────────────────────────────────────────────────────────────
@@ -722,27 +751,62 @@ Chart.register(ChartDataLabels);
 Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif';
 Chart.defaults.plugins.datalabels.display = false;
 
-const mint    = '#08A794';
-const mintLt  = '#0CEFD3';
-const mintBg  = 'rgba(8,167,148,0.12)';
-const mintBg2 = 'rgba(12,239,211,0.08)';
-const danger  = '#FF403E';
-const warn    = '#FFC600';
-const blue    = '#1A7CFF';
-const purple  = '#6580FF';
-const orange  = '#FF8400';
-const gray    = '#E5E7EB';
+// ────────────────────────────────────────────────────────────
+// 색상 상수
+// ────────────────────────────────────────────────────────────
+var mint   = '#08A794';
+var mintLt = '#0CEFD3';
+var mintBg = 'rgba(8,167,148,0.12)';
+var danger = '#FF403E';
+var warn   = '#FFC600';
+var blue   = '#1A7CFF';
+var purple = '#6580FF';
+var orange = '#FF8400';
+var gray   = '#E5E7EB';
 
-const monthLabels = [
-  "'25.1","'25.2","'25.3","'25.4","'25.5","'25.6",
-  "'25.7","'25.8","'25.9","'25.10","'25.11","'25.12",
-  "'26.1","'26.2","'26.3","'26.4"
-];
+// ────────────────────────────────────────────────────────────
+// 유틸 함수
+// ────────────────────────────────────────────────────────────
+function fmt(v, dec) {
+  dec = (dec === undefined) ? 0 : dec;
+  if (v === null || v === undefined || isNaN(v)) return '-';
+  return v.toLocaleString('ko-KR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function fmtSign(v, unit) {
+  unit = unit || '';
+  if (v === null || v === undefined || isNaN(v)) return '-';
+  return (v >= 0 ? '+' : '') + fmt(Math.abs(v), (unit === '%p' || unit === '%') ? 1 : 0) + unit;
+}
+function lastVal(arr) {
+  if (!arr) return null;
+  for (var i = arr.length - 1; i >= 0; i--) {
+    if (arr[i] !== null && arr[i] !== undefined) return arr[i];
+  }
+  return null;
+}
+function setText(id, text) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+function formatMonthLabel(v) {
+  if (v === null || v === undefined || v === '') return '';
+  var s = String(v);
+  var m = s.match(/(\d{4})[\.\-년\s]+(\d{1,2})/);
+  if (m) return "'" + m[1].slice(2) + '.' + parseInt(m[2]);
+  return s;
+}
+function formatBaseDate(v) {
+  if (!v) return '';
+  var s = String(v);
+  var m = s.match(/(\d{4})[\.\-\/](\d{1,2})[\.\-\/](\d{1,2})/);
+  if (m) return m[1] + '.' + m[2].padStart(2,'0') + '.' + m[3].padStart(2,'0');
+  return s;
+}
 
 // ────────────────────────────────────────────────────────────
 // Mini 차트 공통 옵션
 // ────────────────────────────────────────────────────────────
-function miniOpts(color) {
+function miniOpts() {
   return {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false } },
@@ -752,362 +816,391 @@ function miniOpts(color) {
   };
 }
 
-// Mini: 주문수
-new Chart(document.getElementById('miniOrdCnt'), {
-  type: 'line',
-  data: {
-    labels: monthLabels,
-    datasets: [{
-      data: [980,1965,4101,4700,5849,5920,6849,7223,6946,8213,9446,10198,7457,7853,9922,10165],
-      borderColor: mint, backgroundColor: mintBg, fill: true
-    }]
-  },
-  options: miniOpts(mint)
-});
-
-// Mini: 침투율
-new Chart(document.getElementById('miniPenetr'), {
-  type: 'line',
-  data: {
-    labels: monthLabels,
-    datasets: [{
-      data: [1.2,2.7,5.4,6.5,7.7,7.8,8.5,8.7,9.4,10.8,12.6,12.5,9.1,10.8,12.5,13.3],
-      borderColor: mint, backgroundColor: mintBg, fill: true
-    }]
-  },
-  options: miniOpts(mint)
-});
-
-// Mini: Inventory
-new Chart(document.getElementById('miniInven'), {
-  type: 'line',
-  data: {
-    labels: ["'26.1","'26.2","'26.3","'26.4"],
-    datasets: [{
-      data: [0,1,1,1],
-      borderColor: warn, backgroundColor: 'rgba(255,198,0,0.1)', fill: true
-    }]
-  },
-  options: miniOpts(warn)
-});
+// ────────────────────────────────────────────────────────────
+// 주간 막대 업데이트
+// ────────────────────────────────────────────────────────────
+function updateWeekBars(data, weekLabels) {
+  var weekGrid = document.getElementById('weekGrid');
+  if (!weekGrid) return;
+  var ordW = data.ordWeekly || [];
+  var penW = data.penWeekly || [];
+  var validOrd = ordW.filter(function(v){ return v !== null && v !== undefined; });
+  var maxOrd = validOrd.length ? Math.max.apply(null, validOrd) : 1;
+  weekGrid.innerHTML = '';
+  ordW.forEach(function(v, i) {
+    if (v === null || v === undefined) return;
+    var pct = penW[i];
+    var barH = Math.round((v / maxOrd) * 80);
+    var isCurrent = (i === ordW.length - 1) || (i < ordW.length - 1 && (ordW[i+1] === null || ordW[i+1] === undefined));
+    var div = document.createElement('div');
+    div.className = 'week-col' + (isCurrent ? ' current' : '');
+    var labelStyle = isCurrent ? ' style="font-weight:700;color:var(--primary)"' : '';
+    var pctStyle   = isCurrent ? ' style="color:var(--success);font-weight:700"' : '';
+    var label = (weekLabels[i] || '') + (isCurrent ? ' ★' : '');
+    div.innerHTML =
+      '<div class="w-label"' + labelStyle + '>' + label + '</div>' +
+      '<div class="w-bar-wrap"><div class="w-bar" style="height:' + barH + '%"></div></div>' +
+      '<div class="w-val">' + Math.round(v/10000) + '만</div>' +
+      '<div class="w-pct"' + pctStyle + '>' + (pct !== null && pct !== undefined ? pct.toFixed(1) + '%' : '-') + '</div>';
+    weekGrid.appendChild(div);
+  });
+}
 
 // ────────────────────────────────────────────────────────────
-// 주문수 vs 목표 차트
+// 대시보드 초기화 (GAS 데이터 수신 후 호출)
 // ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartOrdCnt'), {
-  type: 'line',
-  data: {
-    labels: monthLabels,
-    datasets: [
-      {
-        label: '실적',
-        data: [980,1965,4101,4700,5849,5920,6849,7223,6946,8213,9446,10198,7457,7853,9922,10165],
-        borderColor: mint, backgroundColor: mintBg, fill: true,
-        tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint
+function initDashboard(data) {
+  var monthLabels = (data.monthlyHeaders || []).map(formatMonthLabel);
+  var weekLabels  = (data.weeklyHeaders  || []).map(function(v){ return String(v); });
+
+  // 기준일 업데이트
+  var bd = formatBaseDate(data.baseDate);
+  setText('baseDateDisplay', '기준일: ' + bd);
+  setText('footerDate', bd);
+
+  // 최신 값 추출
+  var curOrd       = lastVal(data.ordActual);
+  var curOrdTarget = lastVal(data.ordTarget);
+  var curPen       = lastVal(data.penActual);
+  var curPenTarget = lastVal(data.penTarget);
+  var curInv       = lastVal(data.invActual);
+  var curInvTarget = lastVal(data.invTarget);
+  var curStrat     = lastVal(data.promoStrat);
+  var curComp      = lastVal(data.promoComp);
+  var curSel       = lastVal(data.selActual);
+  var curBen       = lastVal(data.benActual);
+  var curMsU       = lastVal(data.msUnique);
+  var curMsN       = lastVal(data.msNonUnique);
+  var curMsUpl     = lastVal(data.msUplift);
+  var curGfv       = lastVal(data.gfvActual);
+  var curGfvPen    = lastVal(data.gfvPen);
+
+  var ordMoMPct  = data.ordMoM  ? data.ordMoM[1]  : null;
+  var penMoMPct  = data.penMoM  ? data.penMoM[1]  : null;
+  var ordWoWPct  = data.ordWoW  ? data.ordWoW[1]  : null;
+  var penWoWPct  = data.penWoW  ? data.penWoW[1]  : null;
+  var gfvMoMAbs  = data.gfvMoM ? data.gfvMoM[0]  : null;
+  var gfvMoMPct  = data.gfvMoM ? data.gfvMoM[1]  : null;
+  var ordGap     = (curOrd !== null && curOrdTarget !== null) ? curOrd - curOrdTarget : null;
+  var penGap     = (curPen !== null && curPenTarget !== null) ? curPen - curPenTarget : null;
+  var invGap     = (curInv !== null && curInvTarget !== null) ? curInv - curInvTarget : null;
+
+  // KPI 카드 DOM 업데이트
+  setText('kpiOrdActual',  fmt(curOrd));
+  setText('kpiOrdTarget',  '목표 ' + fmt(curOrdTarget) + '천건');
+  setText('kpiOrdMoM',     'MoM ' + fmtSign(ordMoMPct, '%') + (ordMoMPct !== null ? (ordMoMPct >= 0 ? ' ▲' : ' ▼') : ''));
+  setText('kpiOrdGap',     fmt(ordGap) + '천건');
+  setText('kpiOrdWoW',     fmtSign(ordWoWPct, '%'));
+  setText('kpiPenActual',  fmt(curPen, 1));
+  setText('kpiPenTarget',  '목표 ' + fmt(curPenTarget, 1) + '%');
+  setText('kpiPenMoM',     'MoM ' + fmtSign(penMoMPct, '%p') + (penMoMPct !== null ? (penMoMPct >= 0 ? ' ▲' : ' ▼') : ''));
+  setText('kpiPenGap',     fmtSign(penGap, '%p'));
+  setText('kpiPenWoW',     fmtSign(penWoWPct, '%p'));
+  setText('kpiInvActual',  fmt(curInv));
+  setText('kpiInvTarget',  '목표 ' + fmt(curInvTarget) + '건');
+  setText('kpiInvGap',     (invGap !== null ? (invGap >= 0 ? '+' : '') + fmt(invGap) + '건' : '-'));
+  setText('msMsUniqueVal',    fmt(curMsU, 1) + '%');
+  setText('msMsNonUniqueVal', fmt(curMsN, 1) + '%');
+  setText('msMsUpliftVal',    fmtSign(curMsUpl, '%p'));
+  setText('gfvSumActual',  fmt(curGfv));
+  setText('gfvSumPct',     fmt(curGfvPen, 1) + '%');
+  setText('gfvSumMoM',     'MoM ' + fmtSign(gfvMoMAbs) + '백만 (' + fmtSign(gfvMoMPct, '%') + ') ' + (gfvMoMPct !== null && gfvMoMPct < 0 ? '⚠️' : ''));
+
+  // ── Mini 차트 ──
+  new Chart(document.getElementById('miniOrdCnt'), {
+    type: 'line',
+    data: { labels: monthLabels, datasets: [{ data: data.ordActual, borderColor: mint, backgroundColor: mintBg, fill: true }] },
+    options: miniOpts()
+  });
+  new Chart(document.getElementById('miniPenetr'), {
+    type: 'line',
+    data: { labels: monthLabels, datasets: [{ data: data.penActual, borderColor: mint, backgroundColor: mintBg, fill: true }] },
+    options: miniOpts()
+  });
+  var invLabels = (data.monthlyHeaders || []).slice(12).map(formatMonthLabel);
+  new Chart(document.getElementById('miniInven'), {
+    type: 'line',
+    data: { labels: invLabels, datasets: [{ data: data.invActual, borderColor: warn, backgroundColor: 'rgba(255,198,0,0.1)', fill: true }] },
+    options: miniOpts()
+  });
+
+  // ── 주문수 vs 목표 ──
+  new Chart(document.getElementById('chartOrdCnt'), {
+    type: 'line',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: '실적', data: data.ordActual, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
+        { label: '목표', data: data.ordTarget, borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent', tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } }, tooltip: { mode: 'index', intersect: false }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, callback: function(v){ return v.toLocaleString(); } }, grid: { color: '#F1F3F6' } }
+      }
+    }
+  });
+
+  // ── 침투율 vs 목표 ──
+  new Chart(document.getElementById('chartPenetr'), {
+    type: 'line',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: '실적', data: data.penActual, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
+        { label: '목표', data: data.penTarget, borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent', tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } }, tooltip: { mode: 'index', intersect: false }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+        y: { min: 0, ticks: { font: { size: 10 }, callback: function(v){ return v + '%'; } }, grid: { color: '#F1F3F6' } }
+      }
+    }
+  });
+
+  // ── 브랜드수 ──
+  new Chart(document.getElementById('chartBrand'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [{
+        label: '브랜드수 (건)',
+        data: data.brandActual,
+        backgroundColor: monthLabels.map(function(_, i){ return i >= 12 ? mint : 'rgba(8,167,148,0.45)'; }),
+        borderRadius: 4, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: true, anchor: 'end', align: 'top', font: { size: 9, weight: '700' },
+          color: function(ctx){ return ctx.dataIndex >= 12 ? mint : '#9CA3AF'; },
+          formatter: function(v){ return v !== null ? v : ''; }
+        }
       },
-      {
-        label: '목표',
-        data: [null,null,null,null,null,null,null,null,null,null,null,null,9417,9491,10237,10311],
-        borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent',
-        tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray
+      scales: {
+        x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 } }, grid: { color: '#F1F3F6' } }
       }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
-      tooltip: { mode: 'index', intersect: false },
-      datalabels: { display: false }
-    },
-    scales: {
-      x: { ticks: { font: { size: 10 } }, grid: { display: false } },
-      y: { ticks: { font: { size: 10 }, callback: v => v.toLocaleString() }, grid: { color: '#F1F3F6' } }
     }
-  }
-});
+  });
 
-// ────────────────────────────────────────────────────────────
-// 침투율 vs 목표
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartPenetr'), {
-  type: 'line',
-  data: {
-    labels: monthLabels,
-    datasets: [
-      {
-        label: '실적',
-        data: [1.2,2.7,5.4,6.5,7.7,7.8,8.5,8.7,9.4,10.8,12.6,12.5,9.1,10.8,12.5,13.3],
-        borderColor: mint, backgroundColor: mintBg, fill: true,
-        tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint
+  // ── 파트너수 ──
+  new Chart(document.getElementById('chartPartner'), {
+    type: 'line',
+    data: {
+      labels: monthLabels,
+      datasets: [{ label: '파트너수 (명)', data: data.partnerActual, borderColor: orange, backgroundColor: 'rgba(255,132,0,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, callback: function(v){ return v >= 1000 ? (v/1000).toFixed(0)+'K' : v; } }, grid: { color: '#F1F3F6' } }
+      }
+    }
+  });
+
+  // ── 주간 차트 ──
+  new Chart(document.getElementById('chartWeekly'), {
+    type: 'bar',
+    data: {
+      labels: weekLabels,
+      datasets: [
+        { type: 'bar', label: '주문수', data: data.ordWeekly,
+          backgroundColor: function(ctx){ return ctx.dataIndex === weekLabels.length - 1 ? mint : 'rgba(8,167,148,0.45)'; },
+          borderRadius: 4, yAxisID: 'y' },
+        { type: 'line', label: '침투율', data: data.penWeekly,
+          borderColor: orange, backgroundColor: 'transparent',
+          tension: 0.4, borderWidth: 2, pointRadius: 4, pointBackgroundColor: orange, yAxisID: 'y2' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+        y: { position: 'left', ticks: { font: { size: 10 }, callback: function(v){ return (v/10000).toFixed(0)+'만'; } }, grid: { color: '#F1F3F6' } },
+        y2: { position: 'right', grid: { display: false }, ticks: { font: { size: 10 }, callback: function(v){ return v + '%'; } }, min: 10, max: 16 }
+      }
+    }
+  });
+
+  // ── 주간 막대 ──
+  updateWeekBars(data, weekLabels);
+
+  // ── 유형별 도넛 ──
+  new Chart(document.getElementById('chartType'), {
+    type: 'doughnut',
+    data: {
+      labels: ['전략 프로모션','경쟁우위 프로모션','Selection','Benefits'],
+      datasets: [{ data: [curStrat||0, curComp||0, curSel||0, curBen||0],
+        backgroundColor: [mint, mintLt, blue, purple], borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
+        datalabels: {
+          display: true,
+          formatter: function(v, ctx) {
+            var total = ctx.chart.data.datasets[0].data.reduce(function(a,b){ return a+b; }, 0);
+            return total > 0 ? ((v/total)*100).toFixed(1) + '%' : '';
+          },
+          color: '#fff', font: { size: 11, weight: '700' }
+        }
       },
-      {
-        label: '목표',
-        data: [null,null,null,null,null,null,null,null,null,null,null,null,11.6,12.7,13.0,13.2],
-        borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent',
-        tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray
-      }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
-      tooltip: { mode: 'index', intersect: false },
-      datalabels: { display: false }
-    },
-    scales: {
-      x: { ticks: { font: { size: 10 } }, grid: { display: false } },
-      y: { min: 0, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: '#F1F3F6' } }
+      cutout: '55%'
     }
-  }
-});
+  });
 
-// ────────────────────────────────────────────────────────────
-// 브랜드수
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartBrand'), {
-  type: 'bar',
-  data: {
-    labels: monthLabels,
-    datasets: [{
-      label: '브랜드수 (건)',
-      data: [7,11,14,15,20,19,23,24,25,29,25,25,24,31,44,53],
-      backgroundColor: monthLabels.map((_, i) => i >= 12 ? mint : mintBg.replace('0.12','0.45')),
-      borderRadius: 4, borderSkipped: false
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      datalabels: {
-        display: true, anchor: 'end', align: 'top',
-        font: { size: 9, weight: '700' },
-        color: ctx => ctx.dataIndex >= 12 ? mint : '#9CA3AF',
-        formatter: v => v
-      }
+  // ── GFV 등급별 (stacked bar, 최근 5개월) ──
+  var gfvTierLabels = (data.monthlyHeaders || []).slice(12).map(formatMonthLabel);
+  new Chart(document.getElementById('chartGfvTier'), {
+    type: 'bar',
+    data: {
+      labels: gfvTierLabels,
+      datasets: [
+        { label: 'Top60',    data: data.gfvTop60,    backgroundColor: mint,   borderRadius: 2 },
+        { label: 'Top200',   data: data.gfvTop200,   backgroundColor: mintLt, borderRadius: 2 },
+        { label: 'Top400',   data: data.gfvTop400,   backgroundColor: orange, borderRadius: 2 },
+        { label: 'Longtail', data: data.gfvLongtail, backgroundColor: purple, borderRadius: 2 }
+      ]
     },
-    scales: {
-      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
-      y: { ticks: { font: { size: 10 } }, grid: { color: '#F1F3F6' } }
-    }
-  }
-});
-
-// ────────────────────────────────────────────────────────────
-// 파트너수
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartPartner'), {
-  type: 'line',
-  data: {
-    labels: monthLabels,
-    datasets: [{
-      label: '파트너수 (명)',
-      data: [1464,3310,4897,6263,6617,7028,7998,8041,9710,12186,12220,12515,11060,12811,17799,22539],
-      borderColor: orange, backgroundColor: 'rgba(255,132,0,0.1)', fill: true,
-      tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      datalabels: { display: false }
-    },
-    scales: {
-      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
-      y: { ticks: { font: { size: 10 }, callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }, grid: { color: '#F1F3F6' } }
-    }
-  }
-});
-
-// ────────────────────────────────────────────────────────────
-// 주간 차트
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartWeekly'), {
-  type: 'bar',
-  data: {
-    labels: ['3월 3주','3월 4주','4월 1주','4월 2주','4월 3주','4월 4주','4월 5주','5월 1주'],
-    datasets: [
-      {
-        type: 'bar', label: '주문수',
-        data: [2111586,2125209,2488586,2151609,2316679,2512481,2594539,2769619],
-        backgroundColor: (ctx) => ctx.dataIndex === 7 ? mint : mintBg.replace('0.12','0.45'),
-        borderRadius: 4, yAxisID: 'y'
-      },
-      {
-        type: 'line', label: '침투율',
-        data: [12.0,12.3,14.1,12.1,13.1,14.0,14.0,14.4],
-        borderColor: orange, backgroundColor: 'transparent',
-        tension: 0.4, borderWidth: 2, pointRadius: 4, pointBackgroundColor: orange, yAxisID: 'y2'
-      }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
-      datalabels: { display: false }
-    },
-    scales: {
-      x: { ticks: { font: { size: 11 } }, grid: { display: false } },
-      y: {
-        position: 'left', ticks: { font: { size: 10 }, callback: v => (v/10000).toFixed(0)+'만' },
-        grid: { color: '#F1F3F6' }
-      },
-      y2: {
-        position: 'right', grid: { display: false },
-        ticks: { font: { size: 10 }, callback: v => v + '%' }, min: 10, max: 16
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } }, datalabels: { display: false } },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 11 } }, grid: { display: false } },
+        y: { stacked: true, ticks: { font: { size: 10 }, callback: function(v){ return (v/1000).toFixed(0)+'B'; } }, grid: { color: '#F1F3F6' } }
       }
     }
-  }
-});
+  });
 
-// ────────────────────────────────────────────────────────────
-// 유형별 도넛
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartType'), {
-  type: 'doughnut',
-  data: {
-    labels: ['전략 프로모션','경쟁우위 프로모션','Selection','Benefits'],
-    datasets: [{
-      data: [4165, 4936, 952, 112],
-      backgroundColor: [mint, mintLt, blue, purple],
-      borderWidth: 2, borderColor: '#fff'
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
-      datalabels: {
-        display: true,
-        formatter: (v, ctx) => {
-          const total = ctx.chart.data.datasets[0].data.reduce((a,b) => a+b, 0);
-          return ((v/total)*100).toFixed(1) + '%';
+  // ── GFV 전체 ──
+  var gfvArr = data.gfvActual || [];
+  new Chart(document.getElementById('chartGfv'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [{
+        label: 'GFV (백만원)',
+        data: gfvArr,
+        backgroundColor: function(ctx) {
+          var v = ctx.raw;
+          if (v === null || v === undefined) return 'transparent';
+          var prev = ctx.dataIndex > 0 ? gfvArr[ctx.dataIndex-1] : v;
+          if (ctx.dataIndex === gfvArr.length - 1 && prev !== null && v < prev) return 'rgba(255,64,62,0.6)';
+          return ctx.dataIndex >= 12 ? mint : 'rgba(8,167,148,0.4)';
         },
-        color: '#fff', font: { size: 11, weight: '700' }
-      }
+        borderRadius: 4
+      }]
     },
-    cutout: '55%'
-  }
-});
-
-// ────────────────────────────────────────────────────────────
-// GFV 등급별 (Stacked Bar)
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartGfvTier'), {
-  type: 'bar',
-  data: {
-    labels: ["'26.1","'26.2","'26.3","'26.4"],
-    datasets: [
-      { label: 'Top60',   data: [176133,203645,252765,227621], backgroundColor: mint, borderRadius: 2 },
-      { label: 'Top200',  data: [20546,19617,20967,27897], backgroundColor: mintLt, borderRadius: 2 },
-      { label: 'Top400',  data: [0,0,445,791], backgroundColor: orange, borderRadius: 2 },
-      { label: 'Longtail',data: [119,298,638,2458], backgroundColor: purple, borderRadius: 2 }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } }, datalabels: { display: false } },
-    scales: {
-      x: { stacked: true, ticks: { font: { size: 11 } }, grid: { display: false } },
-      y: { stacked: true, ticks: { font: { size: 10 }, callback: v => (v/1000).toFixed(0) + 'B' }, grid: { color: '#F1F3F6' } }
-    }
-  }
-});
-
-// ────────────────────────────────────────────────────────────
-// GFV 전체 추이
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartGfv'), {
-  type: 'bar',
-  data: {
-    labels: monthLabels,
-    datasets: [{
-      label: 'GFV (백만원)',
-      data: [28024,53701,109526,125379,145374,147847,171623,181425,170311,201221,229548,250389,183724,201881,274815,258767],
-      backgroundColor: (ctx) => {
-        const v = ctx.raw;
-        const prev = ctx.dataIndex > 0 ? ctx.chart.data.datasets[0].data[ctx.dataIndex-1] : v;
-        return (ctx.dataIndex === 15 && v < prev) ? 'rgba(255,64,62,0.6)' : (ctx.dataIndex >= 12 ? mint : mintBg.replace('0.12','0.4'));
-      },
-      borderRadius: 4
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, datalabels: { display: false } },
-    scales: {
-      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
-      y: { ticks: { font: { size: 10 }, callback: v => (v/1000).toFixed(0)+'B' }, grid: { color: '#F1F3F6' } }
-    }
-  }
-});
-
-// ────────────────────────────────────────────────────────────
-// FLGP
-// ────────────────────────────────────────────────────────────
-new Chart(document.getElementById('chartFlgp'), {
-  type: 'bar',
-  data: {
-    labels: monthLabels,
-    datasets: [{
-      label: 'FLGP Top200 (백만원)',
-      data: [1437,1200,-442,-1150,1027,2767,3890,3244,3492,5523,3732,3317,3811,3947,305,0],
-      backgroundColor: ctx => ctx.raw >= 0
-        ? (ctx.dataIndex >= 12 ? mint : mintBg.replace('0.12','0.4'))
-        : 'rgba(255,64,62,0.55)',
-      borderRadius: 4
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, datalabels: { display: false } },
-    scales: {
-      x: { ticks: { font: { size: 9 } }, grid: { display: false } },
-      y: { ticks: { font: { size: 10 }, callback: v => v.toLocaleString() }, grid: { color: '#F1F3F6' } }
-    }
-  }
-});
-
-// ────────────────────────────────────────────────────────────
-// M/S 차트
-// ────────────────────────────────────────────────────────────
-const msLabels = ["'25.1","'25.2","'25.3","'25.4","'25.5","'25.6","'25.7","'25.8","'25.9","'25.10","'25.11","'26.1","'26.2","'26.3","'26.4"];
-new Chart(document.getElementById('chartMs'), {
-  type: 'line',
-  data: {
-    labels: msLabels,
-    datasets: [
-      {
-        label: 'Unique M/S',
-        data: [94.3,88.1,81.4,77.6,72.8,75.7,74.6,75.8,76.7,68.9,67.5,66.1,63.4,62.6,62.9],
-        borderColor: mint, backgroundColor: mintBg, fill: true,
-        tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint
-      },
-      {
-        label: 'Non-Unique M/S',
-        data: [59.5,58.9,57.8,56.7,55.9,56.1,56.2,56.4,56.9,55.0,55.7,57.8,57.5,57.0,56.9],
-        borderColor: orange, backgroundColor: 'rgba(255,132,0,0.07)', fill: true,
-        tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, callback: function(v){ return (v/1000).toFixed(0)+'B'; } }, grid: { color: '#F1F3F6' } }
       }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
-      tooltip: { mode: 'index', intersect: false },
-      datalabels: { display: false }
-    },
-    scales: {
-      x: { ticks: { font: { size: 10 } }, grid: { display: false } },
-      y: { min: 40, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: '#F1F3F6' } }
     }
+  });
+
+  // ── FLGP ──
+  var flgpArr = data.flgp || [];
+  new Chart(document.getElementById('chartFlgp'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [{
+        label: 'FLGP Top200 (백만원)',
+        data: flgpArr,
+        backgroundColor: function(ctx) {
+          if (ctx.raw === null || ctx.raw === undefined) return 'transparent';
+          return ctx.raw >= 0
+            ? (ctx.dataIndex >= 12 ? mint : 'rgba(8,167,148,0.4)')
+            : 'rgba(255,64,62,0.55)';
+        },
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, callback: function(v){ return v.toLocaleString(); } }, grid: { color: '#F1F3F6' } }
+      }
+    }
+  });
+
+  // ── M/S 차트 ──
+  new Chart(document.getElementById('chartMs'), {
+    type: 'line',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: 'Unique M/S', data: data.msUnique, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
+        { label: 'Non-Unique M/S', data: data.msNonUnique, borderColor: orange, backgroundColor: 'rgba(255,132,0,0.07)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { mode: 'index', intersect: false },
+        datalabels: { display: false }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+        y: { min: 40, ticks: { font: { size: 10 }, callback: function(v){ return v + '%'; } }, grid: { color: '#F1F3F6' } }
+      }
+    }
+  });
+}
+
+// ────────────────────────────────────────────────────────────
+// Fetch 실행 (DOMContentLoaded)
+// ────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  var banner = document.getElementById('loadingBanner');
+  var errBnr = document.getElementById('errorBanner');
+  var errMsg = document.getElementById('errorMsg');
+
+  if (GAS_URL.indexOf('YOUR_DEPLOYMENT_ID') !== -1) {
+    if (banner) banner.style.display = 'none';
+    if (errBnr) errBnr.style.display = 'flex';
+    if (errMsg) errMsg.textContent = 'GAS_URL 미설정 — 스크립트 상단의 GAS_URL을 Apps Script 배포 URL로 교체하세요.';
+    return;
   }
+
+  if (banner) banner.style.display = 'flex';
+
+  fetch(GAS_URL)
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(data) {
+      if (banner) banner.style.display = 'none';
+      initDashboard(data);
+    })
+    .catch(function(err) {
+      if (banner) banner.style.display = 'none';
+      if (errBnr) errBnr.style.display = 'flex';
+      if (errMsg) errMsg.textContent = '데이터 로드 실패: ' + err.message;
+      console.error('GAS fetch error:', err);
+    });
 });
+
 </script>
 </body>
 </html>
