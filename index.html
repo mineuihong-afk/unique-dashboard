@@ -866,57 +866,113 @@ function initDashboard(data) {
   setText('baseDateDisplay', '기준일: ' + bd);
   setText('footerDate', bd);
 
-  // ── 마지막 완료 월 인덱스 ──────────────────────────────────
-  // 규칙: ordActual > 0 인 마지막 월 = 기준일 전월 마감치
-  // (기준일이 5월이어도 5월 실적이 없으면 4월 값 사용)
-  var ci = -1;
-  var ordArr = data.ordActual || [];
-  for (var _i = ordArr.length - 1; _i >= 0; _i--) {
-    if (ordArr[_i] !== null && ordArr[_i] !== undefined && ordArr[_i] > 0) {
-      ci = _i; break;
-    }
+  // ── 자동 단위 정규화 ────────────────────────────────────────────
+  // 시트에 저장된 단위를 자동 감지 후 표시 단위로 변환
+  //   주문수: 건(raw) → 千건  /  비율: 소수(0.133) → %(13.3)
+  function scaleArr(arr, k) {
+    return (arr || []).map(function(v){
+      return (v !== null && v !== undefined) ? v * k : null;
+    });
   }
-  var pi = ci;  // 침투율도 동일 월 인덱스 사용 (주문수와 같은 기준)
-  var gi = ci;  // GFV도 동일
+  function firstPos(arr) {
+    for (var i=0; i<(arr||[]).length; i++) { if (arr[i] > 0) return arr[i]; }
+    return null;
+  }
+  // 주문수 스케일: 첫 양수값 > 50,000 이면 건 단위 → ÷1000
+  var fp_ord = firstPos(data.ordActual);
+  var k_ord  = (fp_ord && fp_ord > 50000) ? 0.001 : 1;
+  // 침투율 스케일: 첫 양수값 < 1 이면 소수 → ×100
+  var fp_pen = firstPos(data.penActual);
+  var k_pen  = (fp_pen && fp_pen < 1) ? 100 : 1;
+  // M/S 스케일: 동일
+  var fp_ms  = firstPos(data.msUnique);
+  var k_ms   = (fp_ms  && fp_ms  < 1) ? 100 : 1;
+  // GFV: 첫 양수값 > 1e10 이면 원 단위 → ÷1e6, > 1e7 이면 → ÷1000
+  var fp_gfv = firstPos(data.gfvActual);
+  var k_gfv  = (fp_gfv && fp_gfv > 1e10) ? 1e-6 : (fp_gfv && fp_gfv > 1e7) ? 0.001 : 1;
+  // % 변화율 스케일: |ordMoM[1]| < 1 이면 소수 → ×100
+  var raw_mom1 = data.ordMoM ? data.ordMoM[1] : null;
+  var k_pct  = (raw_mom1 !== null && Math.abs(raw_mom1) < 1 && raw_mom1 !== 0) ? 100 : 1;
 
-  // 완료 월 레이블 (예: "2026년 4월")
+  console.log('[Dashboard] 단위 스케일:', {ord: k_ord, pen: k_pen, ms: k_ms, gfv: k_gfv, pct: k_pct});
+
+  // 정규화된 배열 (차트·KPI 모두 이것을 사용)
+  var nOrdActual   = scaleArr(data.ordActual,    k_ord);
+  var nOrdTarget   = scaleArr(data.ordTarget,    k_ord);
+  var nOrdWeekly   = scaleArr(data.ordWeekly,    k_ord);
+  var nPenActual   = scaleArr(data.penActual,    k_pen);
+  var nPenTarget   = scaleArr(data.penTarget,    k_pen);
+  var nPenWeekly   = scaleArr(data.penWeekly,    k_pen);
+  var nMsUnique    = scaleArr(data.msUnique,     k_ms);
+  var nMsNonUnique = scaleArr(data.msNonUnique,  k_ms);
+  var nMsUplift    = scaleArr(data.msUplift,     k_ms);
+  var nGfvActual   = scaleArr(data.gfvActual,    k_gfv);
+  var nGfvPen      = scaleArr(data.gfvPen,       k_pen);
+  var nFlgp        = scaleArr(data.flgp,         k_gfv);
+  var nGfvTop60    = scaleArr(data.gfvTop60,     k_gfv);
+  var nGfvTop200   = scaleArr(data.gfvTop200,    k_gfv);
+  var nGfvTop400   = scaleArr(data.gfvTop400,    k_gfv);
+  var nGfvLongtail = scaleArr(data.gfvLongtail,  k_gfv);
+  var k_brand = (firstPos(data.brandActual) > 50000) ? 0.001 : 1;
+  var nBrandActual = scaleArr(data.brandActual,  k_brand);
+  var nBrandTarget = scaleArr(data.brandTarget,  k_brand);
+  var k_part  = (firstPos(data.partnerActual) > 500000) ? 0.001 : 1;
+  var nPartner     = scaleArr(data.partnerActual, k_part);
+  var nPromoStrat  = scaleArr(data.promoStrat,   k_ord);
+  var nPromoComp   = scaleArr(data.promoComp,    k_ord);
+  var nSelActual   = scaleArr(data.selActual,    k_ord);
+  var nBenActual   = scaleArr(data.benActual,    k_ord);
+
+  // MoM / WoW 정규화
+  var nOrdMoM  = data.ordMoM  ? [data.ordMoM[0]  * k_ord, data.ordMoM[1]  * k_pct] : [null,null];
+  var nPenMoM  = data.penMoM  ? [data.penMoM[0]  * k_pen, data.penMoM[1]  * k_pct] : [null,null];
+  var nOrdWoW  = data.ordWoW  ? [data.ordWoW[0]  * k_ord, data.ordWoW[1]  * k_pct] : [null,null];
+  var nPenWoW  = data.penWoW  ? [data.penWoW[0]  * k_pen, data.penWoW[1]  * k_pct] : [null,null];
+  var nGfvMoM  = data.gfvMoM  ? [data.gfvMoM[0]  * k_gfv, data.gfvMoM[1] * k_pct] : [null,null];
+
+  // ── 마지막 완료 월 인덱스 (정규화 후 ordActual > 0) ────────────
+  var ci = -1;
+  for (var _i = nOrdActual.length - 1; _i >= 0; _i--) {
+    if (nOrdActual[_i] !== null && nOrdActual[_i] > 0) { ci = _i; break; }
+  }
+
   var completedMonthLabel = (ci >= 0 && monthLabels[ci]) ? monthLabels[ci] : '-';
-  // 섹션 서브타이틀에 자동 반영
   document.querySelectorAll('.dyn-month').forEach(function(el) {
     el.textContent = completedMonthLabel + ' 기준';
   });
 
-  console.log('[Dashboard] 완료 월 인덱스:', ci, '/ 레이블:', completedMonthLabel,
-              '/ ordActual[ci]:', ordArr[ci]);
+  console.log('[Dashboard] ci:', ci, '/ 레이블:', completedMonthLabel,
+    '/ nOrdActual[ci]:', nOrdActual[ci], '/ nPenActual[ci]:', nPenActual[ci],
+    '/ nMsUnique[ci]:', nMsUnique[ci], '/ nGfvActual[ci]:', nGfvActual[ci]);
 
-  // 최신 값 추출 (같은 월 인덱스로 actual/target 통일)
-  var curOrd       = ci >= 0 ? data.ordActual[ci]    : null;
-  var curOrdTarget = ci >= 0 ? (data.ordTarget  ? data.ordTarget[ci]  : null) : null;
-  var curPen       = pi >= 0 ? data.penActual[pi]    : null;
-  var curPenTarget = pi >= 0 ? (data.penTarget  ? data.penTarget[pi]  : null) : null;
-  var curInv       = lastVal(data.invActual);   // Inventory는 0도 유효
+  // ── 최신값 추출 ─────────────────────────────────────────────────
+  var curOrd       = ci >= 0 ? nOrdActual[ci]       : null;
+  var curOrdTarget = ci >= 0 ? (nOrdTarget[ci]  || null) : null;
+  var curPen       = ci >= 0 ? nPenActual[ci]       : null;
+  var curPenTarget = ci >= 0 ? (nPenTarget[ci]  || null) : null;
+  var curInv       = lastVal(data.invActual);
   var curInvTarget = lastVal(data.invTarget);
-  var curStrat     = ci >= 0 ? (data.promoStrat ? data.promoStrat[ci] : null) : null;
-  var curComp      = ci >= 0 ? (data.promoComp  ? data.promoComp[ci]  : null) : null;
-  var curSel       = ci >= 0 ? (data.selActual  ? data.selActual[ci]  : null) : null;
-  var curBen       = ci >= 0 ? (data.benActual  ? data.benActual[ci]  : null) : null;
-  var curMsU       = ci >= 0 ? (data.msUnique    ? data.msUnique[ci]    : null) : null;
-  var curMsN       = ci >= 0 ? (data.msNonUnique ? data.msNonUnique[ci] : null) : null;
-  var curMsUpl     = ci >= 0 ? (data.msUplift    ? data.msUplift[ci]    : null) : null;
-  var curGfv       = gi >= 0 ? data.gfvActual[gi]   : null;
-  var curGfvPen    = gi >= 0 ? (data.gfvPen ? data.gfvPen[gi] : null) : null;
+  var curStrat     = ci >= 0 ? (nPromoStrat[ci] || null) : null;
+  var curComp      = ci >= 0 ? (nPromoComp[ci]  || null) : null;
+  var curSel       = ci >= 0 ? (nSelActual[ci]  || null) : null;
+  var curBen       = ci >= 0 ? (nBenActual[ci]  || null) : null;
+  var curMsU       = ci >= 0 ? nMsUnique[ci]        : null;
+  var curMsN       = ci >= 0 ? nMsNonUnique[ci]     : null;
+  var curMsUpl     = ci >= 0 ? nMsUplift[ci]        : null;
+  var curGfv       = ci >= 0 ? nGfvActual[ci]       : null;
+  var curGfvPen    = ci >= 0 ? (nGfvPen[ci] || null) : null;
 
-  var ordMoMPct  = data.ordMoM  ? data.ordMoM[1]  : null;
-  var penMoMPct  = data.penMoM  ? data.penMoM[1]  : null;
-  var ordWoWPct  = data.ordWoW  ? data.ordWoW[1]  : null;
-  var penWoWPct  = data.penWoW  ? data.penWoW[1]  : null;
-  var gfvMoMAbs  = data.gfvMoM ? data.gfvMoM[0]  : null;
-  var gfvMoMPct  = data.gfvMoM ? data.gfvMoM[1]  : null;
-  var ordGap     = (curOrd !== null && curOrdTarget !== null) ? curOrd - curOrdTarget : null;
-  var penGap     = (curPen !== null && curPenTarget !== null) ? curPen - curPenTarget : null;
-  var invGap     = (curInv !== null && curInvTarget !== null) ? curInv - curInvTarget : null;
+  var ordMoMPct = nOrdMoM[1];
+  var penMoMPct = nPenMoM[1];
+  var ordWoWPct = nOrdWoW[1];
+  var penWoWPct = nPenWoW[1];
+  var gfvMoMAbs = nGfvMoM[0];
+  var gfvMoMPct = nGfvMoM[1];
+  var ordGap    = (curOrd !== null && curOrdTarget !== null) ? curOrd - curOrdTarget : null;
+  var penGap    = (curPen !== null && curPenTarget !== null) ? curPen - curPenTarget : null;
+  var invGap    = (curInv !== null && curInvTarget !== null) ? curInv - curInvTarget : null;
 
-  // KPI 카드 DOM 업데이트
+  // ── KPI 카드 DOM 업데이트 ────────────────────────────────────────
   setText('kpiOrdActual',  fmt(curOrd));
   setText('kpiOrdTarget',  '목표 ' + fmt(curOrdTarget) + '천건');
   setText('kpiOrdMoM',     'MoM ' + fmtSign(ordMoMPct, '%') + (ordMoMPct !== null ? (ordMoMPct >= 0 ? ' ▲' : ' ▼') : ''));
@@ -940,12 +996,12 @@ function initDashboard(data) {
   // ── Mini 차트 ──
   new Chart(document.getElementById('miniOrdCnt'), {
     type: 'line',
-    data: { labels: monthLabels, datasets: [{ data: data.ordActual, borderColor: mint, backgroundColor: mintBg, fill: true }] },
+    data: { labels: monthLabels, datasets: [{ data: nOrdActual, borderColor: mint, backgroundColor: mintBg, fill: true }] },
     options: miniOpts()
   });
   new Chart(document.getElementById('miniPenetr'), {
     type: 'line',
-    data: { labels: monthLabels, datasets: [{ data: data.penActual, borderColor: mint, backgroundColor: mintBg, fill: true }] },
+    data: { labels: monthLabels, datasets: [{ data: nPenActual, borderColor: mint, backgroundColor: mintBg, fill: true }] },
     options: miniOpts()
   });
   var invLabels = (data.monthlyHeaders || []).slice(12).map(formatMonthLabel);
@@ -961,8 +1017,8 @@ function initDashboard(data) {
     data: {
       labels: monthLabels,
       datasets: [
-        { label: '실적', data: data.ordActual, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
-        { label: '목표', data: data.ordTarget, borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent', tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray }
+        { label: '실적', data: nOrdActual, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
+        { label: '목표', data: nOrdTarget, borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent', tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray }
       ]
     },
     options: {
@@ -981,8 +1037,8 @@ function initDashboard(data) {
     data: {
       labels: monthLabels,
       datasets: [
-        { label: '실적', data: data.penActual, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
-        { label: '목표', data: data.penTarget, borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent', tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray }
+        { label: '실적', data: nPenActual, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
+        { label: '목표', data: nPenTarget, borderColor: gray, borderDash: [5,4], backgroundColor: 'transparent', tension: 0.3, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: gray }
       ]
     },
     options: {
@@ -1002,7 +1058,7 @@ function initDashboard(data) {
       labels: monthLabels,
       datasets: [{
         label: '브랜드수 (건)',
-        data: data.brandActual,
+        data: nBrandActual,
         backgroundColor: monthLabels.map(function(_, i){ return i >= 12 ? mint : 'rgba(8,167,148,0.45)'; }),
         borderRadius: 4, borderSkipped: false
       }]
@@ -1028,7 +1084,7 @@ function initDashboard(data) {
     type: 'line',
     data: {
       labels: monthLabels,
-      datasets: [{ label: '파트너수 (명)', data: data.partnerActual, borderColor: orange, backgroundColor: 'rgba(255,132,0,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange }]
+      datasets: [{ label: '파트너수 (명)', data: nPartner, borderColor: orange, backgroundColor: 'rgba(255,132,0,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -1046,10 +1102,10 @@ function initDashboard(data) {
     data: {
       labels: weekLabels,
       datasets: [
-        { type: 'bar', label: '주문수', data: data.ordWeekly,
+        { type: 'bar', label: '주문수', data: nOrdWeekly,
           backgroundColor: function(ctx){ return ctx.dataIndex === weekLabels.length - 1 ? mint : 'rgba(8,167,148,0.45)'; },
           borderRadius: 4, yAxisID: 'y' },
-        { type: 'line', label: '침투율', data: data.penWeekly,
+        { type: 'line', label: '침투율', data: nPenWeekly,
           borderColor: orange, backgroundColor: 'transparent',
           tension: 0.4, borderWidth: 2, pointRadius: 4, pointBackgroundColor: orange, yAxisID: 'y2' }
       ]
@@ -1066,7 +1122,7 @@ function initDashboard(data) {
   });
 
   // ── 주간 막대 ──
-  updateWeekBars(data, weekLabels);
+  updateWeekBars({ordWeekly: nOrdWeekly, penWeekly: nPenWeekly}, weekLabels);
 
   // ── 유형별 도넛 ──
   new Chart(document.getElementById('chartType'), {
@@ -1100,10 +1156,10 @@ function initDashboard(data) {
     data: {
       labels: gfvTierLabels,
       datasets: [
-        { label: 'Top60',    data: data.gfvTop60,    backgroundColor: mint,   borderRadius: 2 },
-        { label: 'Top200',   data: data.gfvTop200,   backgroundColor: mintLt, borderRadius: 2 },
-        { label: 'Top400',   data: data.gfvTop400,   backgroundColor: orange, borderRadius: 2 },
-        { label: 'Longtail', data: data.gfvLongtail, backgroundColor: purple, borderRadius: 2 }
+        { label: 'Top60',    data: nGfvTop60,    backgroundColor: mint,   borderRadius: 2 },
+        { label: 'Top200',   data: nGfvTop200,   backgroundColor: mintLt, borderRadius: 2 },
+        { label: 'Top400',   data: nGfvTop400,   backgroundColor: orange, borderRadius: 2 },
+        { label: 'Longtail', data: nGfvLongtail, backgroundColor: purple, borderRadius: 2 }
       ]
     },
     options: {
@@ -1117,19 +1173,18 @@ function initDashboard(data) {
   });
 
   // ── GFV 전체 ──
-  var gfvArr = data.gfvActual || [];
   new Chart(document.getElementById('chartGfv'), {
     type: 'bar',
     data: {
       labels: monthLabels,
       datasets: [{
         label: 'GFV (백만원)',
-        data: gfvArr,
+        data: nGfvActual,
         backgroundColor: function(ctx) {
           var v = ctx.raw;
           if (v === null || v === undefined) return 'transparent';
-          var prev = ctx.dataIndex > 0 ? gfvArr[ctx.dataIndex-1] : v;
-          if (ctx.dataIndex === gfvArr.length - 1 && prev !== null && v < prev) return 'rgba(255,64,62,0.6)';
+          var prev = ctx.dataIndex > 0 ? nGfvActual[ctx.dataIndex-1] : v;
+          if (ctx.dataIndex === nGfvActual.length - 1 && prev !== null && v < prev) return 'rgba(255,64,62,0.6)';
           return ctx.dataIndex >= 12 ? mint : 'rgba(8,167,148,0.4)';
         },
         borderRadius: 4
@@ -1146,14 +1201,13 @@ function initDashboard(data) {
   });
 
   // ── FLGP ──
-  var flgpArr = data.flgp || [];
   new Chart(document.getElementById('chartFlgp'), {
     type: 'bar',
     data: {
       labels: monthLabels,
       datasets: [{
         label: 'FLGP Top200 (백만원)',
-        data: flgpArr,
+        data: nFlgp,
         backgroundColor: function(ctx) {
           if (ctx.raw === null || ctx.raw === undefined) return 'transparent';
           return ctx.raw >= 0
@@ -1179,8 +1233,8 @@ function initDashboard(data) {
     data: {
       labels: monthLabels,
       datasets: [
-        { label: 'Unique M/S', data: data.msUnique, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
-        { label: 'Non-Unique M/S', data: data.msNonUnique, borderColor: orange, backgroundColor: 'rgba(255,132,0,0.07)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange }
+        { label: 'Unique M/S', data: nMsUnique, borderColor: mint, backgroundColor: mintBg, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: mint },
+        { label: 'Non-Unique M/S', data: nMsNonUnique, borderColor: orange, backgroundColor: 'rgba(255,132,0,0.07)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: orange }
       ]
     },
     options: {
