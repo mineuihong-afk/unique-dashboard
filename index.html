@@ -325,7 +325,7 @@
   <!-- 1. OKR KPI 카드 -->
   <section>
     <h2><span class="num">1</span>OKR 지표 현황 <span class="okr-tag">⭐ OKR</span></h2>
-    <p class="subtitle">2026년 4월 기준 · 목표/실적/Gap · 월별 추이</p>
+    <p class="subtitle"><span class="dyn-month">2026년 4월 기준</span> · 목표/실적/Gap · 월별 추이</p>
     <div class="kpi-grid">
 
       <!-- 주문수 -->
@@ -532,7 +532,7 @@
   <!-- 4. 유형별 분석 -->
   <section>
     <h2><span class="num">4</span>유형별 분석</h2>
-    <p class="subtitle">Unique 주문수 기준 · '26년 4월 실적</p>
+    <p class="subtitle">Unique 주문수 기준 · <span class="dyn-month">2026년 4월 기준</span></p>
 
     <div class="two-col">
       <div>
@@ -581,7 +581,7 @@
   <!-- 5. 브랜드 등급별 -->
   <section>
     <h2><span class="num">5</span>브랜드 등급별 분석</h2>
-    <p class="subtitle">주문수 · 브랜드수 · 파트너수 · GFV 기준 · '26년 4월</p>
+    <p class="subtitle">주문수 · 브랜드수 · 파트너수 · GFV 기준 · <span class="dyn-month">2026년 4월 기준</span></p>
 
     <div class="two-col">
       <div>
@@ -650,7 +650,7 @@
   <!-- 6. GFV / FLGP -->
   <section>
     <h2><span class="num">6</span>GFV · FLGP</h2>
-    <p class="subtitle">GFV 및 FLGP(Top200 한정) 월별 추이</p>
+    <p class="subtitle">GFV 및 FLGP(Top200 한정) 월별 추이 · <span class="dyn-month">2026년 4월 기준</span></p>
 
     <div class="summary-grid">
       <div class="summary-card bad">
@@ -689,7 +689,7 @@
   <!-- 7. M/S -->
   <section>
     <h2><span class="num">7</span>M/S 분석</h2>
-    <p class="subtitle">Unique vs Non-Unique 가맹점 M/S 비교 · 단순 평균 기준 · <strong style="color:var(--success)">'26년 4월 데이터 업데이트</strong></p>
+    <p class="subtitle">Unique vs Non-Unique 가맹점 M/S 비교 · 단순 평균 기준 · <span class="dyn-month" style="color:var(--success);font-weight:700">2026년 4월 기준</span></p>
 
     <div class="stat-row">
       <div class="stat-item">
@@ -866,10 +866,28 @@ function initDashboard(data) {
   setText('baseDateDisplay', '기준일: ' + bd);
   setText('footerDate', bd);
 
-  // 마지막 완료 월 인덱스 (실적 > 0 기준)
-  var ci = lastDoneIdx(data.ordActual);   // 주문수 기준 완료 월 인덱스
-  var pi = lastDoneIdx(data.penActual);   // 침투율 기준
-  var gi = lastDoneIdx(data.gfvActual);   // GFV 기준
+  // ── 마지막 완료 월 인덱스 ──────────────────────────────────
+  // 규칙: ordActual > 0 인 마지막 월 = 기준일 전월 마감치
+  // (기준일이 5월이어도 5월 실적이 없으면 4월 값 사용)
+  var ci = -1;
+  var ordArr = data.ordActual || [];
+  for (var _i = ordArr.length - 1; _i >= 0; _i--) {
+    if (ordArr[_i] !== null && ordArr[_i] !== undefined && ordArr[_i] > 0) {
+      ci = _i; break;
+    }
+  }
+  var pi = ci;  // 침투율도 동일 월 인덱스 사용 (주문수와 같은 기준)
+  var gi = ci;  // GFV도 동일
+
+  // 완료 월 레이블 (예: "2026년 4월")
+  var completedMonthLabel = (ci >= 0 && monthLabels[ci]) ? monthLabels[ci] : '-';
+  // 섹션 서브타이틀에 자동 반영
+  document.querySelectorAll('.dyn-month').forEach(function(el) {
+    el.textContent = completedMonthLabel + ' 기준';
+  });
+
+  console.log('[Dashboard] 완료 월 인덱스:', ci, '/ 레이블:', completedMonthLabel,
+              '/ ordActual[ci]:', ordArr[ci]);
 
   // 최신 값 추출 (같은 월 인덱스로 actual/target 통일)
   var curOrd       = ci >= 0 ? data.ordActual[ci]    : null;
