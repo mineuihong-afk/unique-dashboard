@@ -1168,7 +1168,38 @@ function initDashboard(data) {
 }
 
 // ────────────────────────────────────────────────────────────
-// Fetch 실행 (DOMContentLoaded)
+// JSONP 로더 (CORS 우회)
+// ────────────────────────────────────────────────────────────
+function loadGasJsonp(url, onSuccess, onError) {
+  var cbName = '_gasCb' + Date.now();
+  var script = document.createElement('script');
+  var timer = setTimeout(function() {
+    cleanup();
+    onError(new Error('요청 타임아웃 (15초) — GAS URL 및 권한을 확인하세요'));
+  }, 15000);
+
+  function cleanup() {
+    clearTimeout(timer);
+    delete window[cbName];
+    if (script.parentNode) script.parentNode.removeChild(script);
+  }
+
+  window[cbName] = function(data) {
+    cleanup();
+    onSuccess(data);
+  };
+
+  script.onerror = function() {
+    cleanup();
+    onError(new Error('스크립트 로드 실패 — GAS 배포 권한을 확인하세요'));
+  };
+
+  script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + cbName;
+  document.head.appendChild(script);
+}
+
+// ────────────────────────────────────────────────────────────
+// 실행 (DOMContentLoaded)
 // ────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function() {
   var banner = document.getElementById('loadingBanner');
@@ -1184,21 +1215,19 @@ window.addEventListener('DOMContentLoaded', function() {
 
   if (banner) banner.style.display = 'flex';
 
-  fetch(GAS_URL)
-    .then(function(res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    })
-    .then(function(data) {
+  loadGasJsonp(
+    GAS_URL,
+    function(data) {
       if (banner) banner.style.display = 'none';
       initDashboard(data);
-    })
-    .catch(function(err) {
+    },
+    function(err) {
       if (banner) banner.style.display = 'none';
       if (errBnr) errBnr.style.display = 'flex';
       if (errMsg) errMsg.textContent = '데이터 로드 실패: ' + err.message;
-      console.error('GAS fetch error:', err);
-    });
+      console.error('GAS JSONP error:', err);
+    }
+  );
 });
 
 </script>
