@@ -784,6 +784,14 @@ function lastVal(arr) {
   }
   return null;
 }
+// 실적 기준 마지막 완료 월 인덱스 (0 제외)
+function lastDoneIdx(arr) {
+  if (!arr) return -1;
+  for (var i = arr.length - 1; i >= 0; i--) {
+    if (arr[i] !== null && arr[i] !== undefined && arr[i] > 0) return i;
+  }
+  return -1;
+}
 function setText(id, text) {
   var el = document.getElementById(id);
   if (el) el.textContent = text;
@@ -858,22 +866,27 @@ function initDashboard(data) {
   setText('baseDateDisplay', '기준일: ' + bd);
   setText('footerDate', bd);
 
-  // 최신 값 추출
-  var curOrd       = lastVal(data.ordActual);
-  var curOrdTarget = lastVal(data.ordTarget);
-  var curPen       = lastVal(data.penActual);
-  var curPenTarget = lastVal(data.penTarget);
-  var curInv       = lastVal(data.invActual);
+  // 마지막 완료 월 인덱스 (실적 > 0 기준)
+  var ci = lastDoneIdx(data.ordActual);   // 주문수 기준 완료 월 인덱스
+  var pi = lastDoneIdx(data.penActual);   // 침투율 기준
+  var gi = lastDoneIdx(data.gfvActual);   // GFV 기준
+
+  // 최신 값 추출 (같은 월 인덱스로 actual/target 통일)
+  var curOrd       = ci >= 0 ? data.ordActual[ci]    : null;
+  var curOrdTarget = ci >= 0 ? (data.ordTarget  ? data.ordTarget[ci]  : null) : null;
+  var curPen       = pi >= 0 ? data.penActual[pi]    : null;
+  var curPenTarget = pi >= 0 ? (data.penTarget  ? data.penTarget[pi]  : null) : null;
+  var curInv       = lastVal(data.invActual);   // Inventory는 0도 유효
   var curInvTarget = lastVal(data.invTarget);
-  var curStrat     = lastVal(data.promoStrat);
-  var curComp      = lastVal(data.promoComp);
-  var curSel       = lastVal(data.selActual);
-  var curBen       = lastVal(data.benActual);
-  var curMsU       = lastVal(data.msUnique);
-  var curMsN       = lastVal(data.msNonUnique);
-  var curMsUpl     = lastVal(data.msUplift);
-  var curGfv       = lastVal(data.gfvActual);
-  var curGfvPen    = lastVal(data.gfvPen);
+  var curStrat     = ci >= 0 ? (data.promoStrat ? data.promoStrat[ci] : null) : null;
+  var curComp      = ci >= 0 ? (data.promoComp  ? data.promoComp[ci]  : null) : null;
+  var curSel       = ci >= 0 ? (data.selActual  ? data.selActual[ci]  : null) : null;
+  var curBen       = ci >= 0 ? (data.benActual  ? data.benActual[ci]  : null) : null;
+  var curMsU       = ci >= 0 ? (data.msUnique    ? data.msUnique[ci]    : null) : null;
+  var curMsN       = ci >= 0 ? (data.msNonUnique ? data.msNonUnique[ci] : null) : null;
+  var curMsUpl     = ci >= 0 ? (data.msUplift    ? data.msUplift[ci]    : null) : null;
+  var curGfv       = gi >= 0 ? data.gfvActual[gi]   : null;
+  var curGfvPen    = gi >= 0 ? (data.gfvPen ? data.gfvPen[gi] : null) : null;
 
   var ordMoMPct  = data.ordMoM  ? data.ordMoM[1]  : null;
   var penMoMPct  = data.penMoM  ? data.penMoM[1]  : null;
